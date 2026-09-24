@@ -1,0 +1,25 @@
+# Frontend
+node_modules/
+dist/
+
+# Backend Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# AI Model
+*.pkl
+*.pt
+*.pth
+*.h5
+
+# Database
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

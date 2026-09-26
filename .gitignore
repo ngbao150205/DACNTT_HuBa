@@ -1,25 +1,88 @@
-# Frontend
+# ==================================
+# Logs
+# ==================================
+
+logs/
+*.log
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+
+# ==================================
+# Frontend React / Vite
+# ==================================
+
 node_modules/
 dist/
+dist-ssr/
 
+*.local
+
+frontend/.env
+
+
+# ==================================
 # Backend Python
-__pycache__/
-*.pyc
-venv/
-.env
+# ==================================
 
+venv/
+backend/venv/
+
+__pycache__/
+*.py[cod]
+
+backend/.env
+
+
+# ==================================
 # AI Model
+# ==================================
+
 *.pkl
+*.joblib
 *.pt
 *.pth
 *.h5
 
+
+# ==================================
+# Dataset / Data lớn
+# ==================================
+
+*.csv
+*.xlsx
+*.jsonl
+
+
+# ==================================
 # Database
+# ==================================
+
 *.sqlite3
 
-# IDE
+
+# ==================================
+# Editor
+# ==================================
+
 .vscode/
+!.vscode/extensions.json
+
 .idea/
 
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+
+# ==================================
 # OS
+# ==================================
+
 .DS_Store

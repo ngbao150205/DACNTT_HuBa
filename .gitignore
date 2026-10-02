@@ -13,48 +13,65 @@ lerna-debug.log*
 
 
 # ==================================
-# Frontend React / Vite
+# Frontend - React / Vite
 # ==================================
 
-node_modules/
-dist/
-dist-ssr/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
 
 *.local
 
-frontend/.env
-
 
 # ==================================
-# Backend Python
+# Backend - Python
 # ==================================
 
-venv/
 backend/venv/
+backend/.venv/
+
+backend/__pycache__/
+backend/**/*.py[cod]
+
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+
+# ==================================
+# AI Service - Python
+# ==================================
+
+ai-service/venv/
+ai-service/.venv/
+
+ai-service/__pycache__/
+ai-service/**/*.py[cod]
+
+ai-service/.env
+ai-service/.env.*
+!ai-service/.env.example
+
+
+# ==================================
+# Python general
+# ==================================
 
 __pycache__/
 *.py[cod]
 
-backend/.env
-
 
 # ==================================
-# AI Model
-# ==================================
-
-*.pkl
-*.joblib
-*.pt
-*.pth
-*.h5
-
-
-# ==================================
-# Dataset / Data lớn
+# Dataset / Large Data
 # ==================================
 
 *.csv
 *.xlsx
+*.xls
 *.jsonl
 
 

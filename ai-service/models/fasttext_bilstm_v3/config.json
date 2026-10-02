@@ -1,0 +1,7 @@
+{
+  "max_len": 120,
+  "max_words": 30000,
+  "emb_dim": 300,
+  "vi_keep": "0-9a-zA-Záàảãạâấầẩẫậăắằẳẵặéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđ",
+  "fasttext_vec_path": "/content/drive/MyDrive/Datamining/model_tokenizer_fasttext củ/wiki.vi.vec"
+}

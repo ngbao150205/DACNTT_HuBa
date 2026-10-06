@@ -1,60 +1,53 @@
-interface Props{
-
-title:string;
-
-value:string | number;
-
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  description?: string;
 }
-
 
 function StatCard({
-title,
-value
-}:Props){
+  title,
+  value,
+  description,
+}: StatCardProps) {
 
+  return (
+    <div className="
+      bg-white
+      rounded-2xl
+      border
+      border-gray-100
+      p-6
+      shadow-sm
+    ">
 
-return (
+      <p className="
+        text-sm
+        text-gray-500
+      ">
+        {title}
+      </p>
 
-<div
+      <h2 className="
+        text-3xl
+        font-bold
+        text-slate-800
+        mt-2
+      ">
+        {value}
+      </h2>
 
-className="
-bg-white
-rounded-2xl
-shadow-sm
-border
-p-6
-"
+      {description && (
+        <p className="
+          text-sm
+          text-gray-400
+          mt-2
+        ">
+          {description}
+        </p>
+      )}
 
->
-
-
-<p className="
-text-gray-500
-text-sm
-">
-
-{title}
-
-</p>
-
-
-<h2 className="
-text-4xl
-font-bold
-mt-3
-text-slate-800
-">
-
-{value}
-
-</h2>
-
-
-</div>
-
-)
-
+    </div>
+  );
 }
-
 
 export default StatCard;

@@ -1,69 +1,36 @@
 import type {
-ReactNode
+  ReactNode,
 } from "react";
 
-
-import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import Sidebar from "../components/Sidebar";
 
-
-interface Props{
-
-children:ReactNode;
-
+interface DashboardLayoutProps {
+  children: ReactNode;
 }
-
-
 
 function DashboardLayout({
-children
-}:Props){
+  children,
+}: DashboardLayoutProps) {
+  return (
+    <div className="min-h-screen bg-slate-100">
+      <Sidebar />
 
+      <Header />
 
-return (
-
-<div
-className="
-flex
-min-h-screen
-bg-slate-100
-"
->
-
-
-<Sidebar/>
-
-
-<div
-className="
-flex-1
-"
->
-
-
-<Header/>
-
-
-<main
-className="
-p-8
-"
->
-
-{children}
-
-</main>
-
-
-</div>
-
-
-</div>
-
-)
-
-
+      <main
+        className="
+          ml-72
+          min-h-screen
+          px-8
+          pb-8
+          pt-32
+        "
+      >
+        {children}
+      </main>
+    </div>
+  );
 }
-
 
 export default DashboardLayout;

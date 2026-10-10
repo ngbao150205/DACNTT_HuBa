@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  ArrowLeft,
   BarChart3,
   FileText,
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
 import {
   NavLink,
   Outlet,
+  useLocation,
   useNavigate,
   useParams,
 } from "react-router-dom";
@@ -22,6 +24,9 @@ function ProductAnalysisLayout() {
 
   const navigate =
     useNavigate();
+
+  const location =
+    useLocation();
 
   const tabClass = ({
     isActive,
@@ -100,16 +105,43 @@ function ProductAnalysisLayout() {
           lg:justify-between
         ">
           <div>
-            <p className="
-              text-sm
-              font-semibold
-              text-blue-600
-            ">
-              Product ID: {productId}
-            </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/history")}
+                className="
+                  inline-flex
+                  items-center
+                  gap-1.5
+                  rounded-lg
+                  border
+                  border-slate-200
+                  bg-slate-50
+                  px-3
+                  py-1.5
+                  text-xs
+                  font-medium
+                  text-slate-600
+                  transition
+                  hover:bg-slate-100
+                  hover:text-slate-900
+                "
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Lịch sử phân tích
+              </button>
+
+              <p className="
+                text-sm
+                font-semibold
+                text-blue-600
+              ">
+                Product ID: {productId}
+              </p>
+            </div>
 
             <h1 className="
-              mt-1
+              mt-2
               text-2xl
               font-bold
               text-slate-900
@@ -126,31 +158,58 @@ function ProductAnalysisLayout() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate("/analyze")}
-            className="
-              inline-flex
-              items-center
-              justify-center
-              gap-2
-              rounded-xl
-              bg-blue-600
-              px-5
-              py-3
-              text-sm
-              font-semibold
-              text-white
-              transition
-              hover:bg-blue-700
-            "
-          >
-            <RefreshCcw className="
-              h-4
-              w-4
-            " />
-            Phân tích sản phẩm khác
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate("/history")}
+              className="
+                inline-flex
+                items-center
+                justify-center
+                gap-2
+                rounded-xl
+                border
+                border-slate-200
+                bg-white
+                px-4
+                py-2.5
+                text-sm
+                font-semibold
+                text-slate-700
+                transition
+                hover:bg-slate-50
+              "
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Chọn lần phân tích khác
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/analyze")}
+              className="
+                inline-flex
+                items-center
+                justify-center
+                gap-2
+                rounded-xl
+                bg-blue-600
+                px-4
+                py-2.5
+                text-sm
+                font-semibold
+                text-white
+                transition
+                hover:bg-blue-700
+              "
+            >
+              <RefreshCcw className="
+                h-4
+                w-4
+              " />
+              Phân tích sản phẩm mới
+            </button>
+          </div>
         </div>
 
         <div className="
@@ -160,7 +219,10 @@ function ProductAnalysisLayout() {
           gap-3
         ">
           <NavLink
-            to={`/products/${productId}/dashboard`}
+            to={{
+              pathname: `/products/${productId}/dashboard`,
+              search: location.search,
+            }}
             className={tabClass}
           >
             <LayoutDashboard className="
@@ -171,7 +233,10 @@ function ProductAnalysisLayout() {
           </NavLink>
 
           <NavLink
-            to={`/products/${productId}/reviews`}
+            to={{
+              pathname: `/products/${productId}/reviews`,
+              search: location.search,
+            }}
             className={tabClass}
           >
             <FileText className="
@@ -182,7 +247,10 @@ function ProductAnalysisLayout() {
           </NavLink>
 
           <NavLink
-            to={`/products/${productId}/issues`}
+            to={{
+              pathname: `/products/${productId}/issues`,
+              search: location.search,
+            }}
             className={tabClass}
           >
             <BarChart3 className="
@@ -193,7 +261,10 @@ function ProductAnalysisLayout() {
           </NavLink>
 
           <NavLink
-            to={`/products/${productId}/risk`}
+            to={{
+              pathname: `/products/${productId}/risk`,
+              search: location.search,
+            }}
             className={tabClass}
           >
             <ShieldAlert className="
@@ -204,7 +275,10 @@ function ProductAnalysisLayout() {
           </NavLink>
 
           <NavLink
-            to={`/products/${productId}/competitor`}
+            to={{
+              pathname: `/products/${productId}/competitor`,
+              search: location.search,
+            }}
             className={tabClass}
           >
             <Users className="

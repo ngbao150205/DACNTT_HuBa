@@ -235,9 +235,8 @@ function Issues() {
 
         setReviews(allReviews);
 
-        localStorage.setItem(
-          "activeProductId",
-          String(productId)
+        localStorage.removeItem(
+          "activeProductId"
         );
       } catch (err) {
         setError(err instanceof Error ? err.message : "Lỗi không xác định.");

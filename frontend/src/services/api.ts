@@ -101,90 +101,58 @@ export interface ProductReviewsResponse {
  * thông qua backend.
  */
 
+export interface AnalysisHistoryItem {
+  id: number;
+  product_id: number;
+  total_reviews: number;
+  analyzed_reviews: number;
+  positive_count: number;
+  negative_count: number;
+  neutral_count: number;
+  positive_rate: number;
+  negative_rate: number;
+  neutral_rate: number;
+  issue_summary: Record<string, number>;
+  risk_summary: Record<string, number>;
+  analyzed_at: string;
+}
+
 export interface ProductAnalysisApiResponse {
   product: {
     id: number;
-
     platform_product_id: string;
-
     platform: string;
-
     name: string;
-
     url: string;
-
     seller_name?: string | null;
-
     rating?: number | null;
-
     product_type?: string | null;
-
     category?: string | null;
-
     total_reviews: number;
-
     is_active?: boolean;
-
     created_at?: string | null;
-
     updated_at?: string | null;
-
     last_crawled_at?: string | null;
   };
 
   analysis: {
     total_reviews: number;
-
     analyzed_reviews: number;
-
     positive_count: number;
-
     negative_count: number;
-
     neutral_count: number;
-
     positive_rate: number;
-
     negative_rate: number;
-
     neutral_rate: number;
-
-    issue_summary: Record<
-      string,
-      number
-    >;
-
-    risk_summary: Record<
-      string,
-      number
-    >;
+    issue_summary: Record<string, number>;
+    risk_summary: Record<string, number>;
+    history_id?: number | null;
+    analyzed_at?: string | null;
   };
 
-  latest_history?: {
-    id: number;
-
-    total_reviews: number;
-
-    analyzed_reviews: number;
-
-    positive_count: number;
-
-    negative_count: number;
-
-    neutral_count: number;
-
-    positive_rate: number;
-
-    negative_rate: number;
-
-    neutral_rate: number;
-
-    issue_summary: string;
-
-    risk_summary: string;
-
-    analyzed_at: string;
-  } | null;
+  latest_history?: AnalysisHistoryItem | null;
+  selected_history?: AnalysisHistoryItem | null;
+  histories?: AnalysisHistoryItem[];
 }
 
 
@@ -360,28 +328,42 @@ export async function analyzeProduct(
  */
 
 export async function getProductAnalysis(
-  productId: string | number
+  productId: string | number,
+  historyId?: string | number | null
 ): Promise<ProductAnalysisApiResponse> {
+  const url = historyId
+    ? `${API_BASE_URL}/products/${productId}/analysis?history_id=${historyId}`
+    : `${API_BASE_URL}/products/${productId}/analysis`;
 
-  const response =
-    await fetch(
-      `${API_BASE_URL}/products/${productId}/analysis`
-    );
-
+  const response = await fetch(url);
 
   if (!response.ok) {
-
     throw new Error(
       await parseError(
         response
       )
     );
-
   }
 
+  return response.json();
+}
+
+export async function getProductHistories(
+  productId: string | number
+): Promise<{ histories: AnalysisHistoryItem[] }> {
+  const response = await fetch(
+    `${API_BASE_URL}/products/${productId}/histories`
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await parseError(
+        response
+      )
+    );
+  }
 
   return response.json();
-
 }
 
 
@@ -399,41 +381,22 @@ export async function getProductAnalysis(
 
 export async function getProductReviews(
   productId: string | number,
-
   page: number = 1,
-
-  pageSize: number = 10
+  pageSize: number = 10,
+  rating?: number | null
 ): Promise<ProductReviewsResponse> {
+  const params = new URLSearchParams({
+    page: String(Math.max(1, page)),
+    page_size: String(Math.min(100, Math.max(1, pageSize))),
+  });
 
-  const params =
-    new URLSearchParams({
+  if (rating !== undefined && rating !== null) {
+    params.set("rating", String(rating));
+  }
 
-      page:
-        String(
-          Math.max(
-            1,
-            page
-          )
-        ),
-
-      page_size:
-        String(
-          Math.min(
-            100,
-            Math.max(
-              1,
-              pageSize
-            )
-          )
-        ),
-
-    });
-
-
-  const response =
-    await fetch(
-      `${API_BASE_URL}/products/${productId}/reviews?${params.toString()}`
-    );
+  const response = await fetch(
+    `${API_BASE_URL}/products/${productId}/reviews?${params.toString()}`
+  );
 
 
   if (!response.ok) {

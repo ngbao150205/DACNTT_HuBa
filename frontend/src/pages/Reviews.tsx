@@ -12,6 +12,7 @@ import {
 
 import {
   Search,
+  Star,
 } from "lucide-react";
 
 import {
@@ -128,6 +129,11 @@ function Reviews() {
   ] = useState<SentimentFilter>("ALL");
 
   const [
+    selectedRating,
+    setSelectedRating,
+  ] = useState<number | "ALL">("ALL");
+
+  const [
     searchText,
     setSearchText,
   ] = useState("");
@@ -201,9 +207,8 @@ function Reviews() {
         setReviews(allReviews);
         setClientPage(1);
 
-        localStorage.setItem(
-          "activeProductId",
-          String(productId)
+        localStorage.removeItem(
+          "activeProductId"
         );
       } catch (err) {
         console.error(
@@ -261,6 +266,15 @@ function Reviews() {
     reviews,
   ]);
 
+  const ratingCounts = useMemo(() => {
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const r of reviews) {
+      const star = Math.max(1, Math.min(5, Math.round(r.rating || 0)));
+      counts[star] = (counts[star] || 0) + 1;
+    }
+    return counts;
+  }, [reviews]);
+
   const filteredReviews = useMemo(() => {
     const query =
       searchText
@@ -268,6 +282,13 @@ function Reviews() {
         .toLowerCase();
 
     return reviews.filter((review) => {
+      if (selectedRating !== "ALL") {
+        const star = Math.max(1, Math.min(5, Math.round(review.rating || 0)));
+        if (star !== selectedRating) {
+          return false;
+        }
+      }
+
       const sentiment =
         getReviewSentiment(review);
 
@@ -293,6 +314,7 @@ function Reviews() {
     });
   }, [
     reviews,
+    selectedRating,
     selectedSentiment,
     searchText,
   ]);
@@ -333,6 +355,7 @@ function Reviews() {
   useEffect(() => {
     setClientPage(1);
   }, [
+    selectedRating,
     selectedSentiment,
     searchText,
   ]);
@@ -726,108 +749,166 @@ function Reviews() {
           <section className="
             flex
             flex-col
-            gap-3
+            gap-4
             rounded-2xl
             border
             border-slate-100
             bg-white
             p-4
             shadow-sm
-            md:flex-row
-            md:items-center
-            md:justify-between
           ">
-            <div>
-              <p className="
-                text-sm
-                font-semibold
-                text-slate-700
-              ">
-                Bộ lọc đánh giá
-              </p>
-
-              <p className="
-                text-xs
-                text-slate-500
-              ">
-                Đang hiển thị {paginatedReviews.length} review trên trang {clientPage} / {clientTotalPages}.
-                Tổng sau lọc: {filteredReviews.length}.
-              </p>
-            </div>
-
             <div className="
               flex
               flex-col
               gap-3
               md:flex-row
+              md:items-center
+              md:justify-between
             ">
-              <select
-                value={selectedSentiment}
-                onChange={(event) =>
-                  setSelectedSentiment(
-                    event.target.value as SentimentFilter
-                  )
-                }
-                className="
-                  rounded-xl
-                  border
-                  border-slate-200
-                  bg-white
-                  px-4
-                  py-2
+              <div>
+                <p className="
                   text-sm
-                  outline-none
-                  focus:border-blue-500
-                "
-              >
-                <option value="ALL">
-                  Tất cả cảm xúc ({sentimentSummary.ALL})
-                </option>
-                <option value="Positive">
-                  Positive ({sentimentSummary.Positive})
-                </option>
-                <option value="Neutral">
-                  Neutral ({sentimentSummary.Neutral})
-                </option>
-                <option value="Negative">
-                  Negative ({sentimentSummary.Negative})
-                </option>
-              </select>
+                  font-semibold
+                  text-slate-700
+                ">
+                  Bộ lọc đánh giá
+                </p>
+
+                <p className="
+                  text-xs
+                  text-slate-500
+                ">
+                  Đang hiển thị {paginatedReviews.length} review trên trang {clientPage} / {clientTotalPages}.
+                  Tổng sau lọc: {filteredReviews.length}.
+                </p>
+              </div>
 
               <div className="
-                relative
-                w-full
-                md:w-80
+                flex
+                flex-col
+                gap-3
+                md:flex-row
+                md:items-center
               ">
-                <Search className="
-                  absolute
-                  left-3
-                  top-2.5
-                  h-4
-                  w-4
-                  text-slate-400
-                " />
-
-                <input
-                  value={searchText}
+                <select
+                  value={selectedSentiment}
                   onChange={(event) =>
-                    setSearchText(event.target.value)
+                    setSelectedSentiment(
+                      event.target.value as SentimentFilter
+                    )
                   }
-                  placeholder="Tìm review, mã review, sentiment..."
                   className="
-                    w-full
                     rounded-xl
                     border
                     border-slate-200
+                    bg-white
+                    px-4
                     py-2
-                    pl-9
-                    pr-4
                     text-sm
                     outline-none
                     focus:border-blue-500
                   "
-                />
+                >
+                  <option value="ALL">
+                    Tất cả cảm xúc ({sentimentSummary.ALL})
+                  </option>
+                  <option value="Positive">
+                    Positive ({sentimentSummary.Positive})
+                  </option>
+                  <option value="Neutral">
+                    Neutral ({sentimentSummary.Neutral})
+                  </option>
+                  <option value="Negative">
+                    Negative ({sentimentSummary.Negative})
+                  </option>
+                </select>
+
+                <div className="
+                  relative
+                  w-full
+                  md:w-80
+                ">
+                  <Search className="
+                    absolute
+                    left-3
+                    top-2.5
+                    h-4
+                    w-4
+                    text-slate-400
+                  " />
+
+                  <input
+                    value={searchText}
+                    onChange={(event) =>
+                      setSearchText(event.target.value)
+                    }
+                    placeholder="Tìm review, mã review, sentiment..."
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      py-2
+                      pl-9
+                      pr-4
+                      text-sm
+                      outline-none
+                      focus:border-blue-500
+                    "
+                  />
+                </div>
               </div>
+            </div>
+
+            {/* BỘ LỌC THEO SỐ SAO 1 - 5 */}
+            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
+              <span className="mr-1 text-xs font-semibold text-slate-500">Số sao:</span>
+              <button
+                type="button"
+                onClick={() => setSelectedRating("ALL")}
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition ${
+                  selectedRating === "ALL"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                Tất cả ({reviews.length})
+              </button>
+
+              {[5, 4, 3, 2, 1].map((stars) => {
+                const count = ratingCounts[stars] || 0;
+                const isSelected = selectedRating === stars;
+                return (
+                  <button
+                    key={stars}
+                    type="button"
+                    onClick={() => setSelectedRating(stars)}
+                    className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition ${
+                      isSelected
+                        ? "bg-amber-500 text-white shadow-sm ring-2 ring-amber-300"
+                        : "border border-amber-200 bg-amber-50/60 text-amber-800 hover:bg-amber-100/80"
+                    }`}
+                  >
+                    <span>{stars}</span>
+                    <Star
+                      className={`h-3.5 w-3.5 ${
+                        isSelected
+                          ? "fill-white text-white"
+                          : "fill-amber-400 text-amber-400"
+                      }`}
+                    />
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 text-[10px] ${
+                        isSelected
+                          ? "bg-amber-600 text-white"
+                          : "bg-amber-200/60 text-amber-900"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </section>
 
@@ -858,8 +939,33 @@ function Reviews() {
                   text-sm
                   text-slate-500
                 ">
-                  Thử đổi bộ lọc cảm xúc hoặc từ khóa tìm kiếm.
+                  Thử đổi bộ lọc số sao, cảm xúc hoặc từ khóa tìm kiếm.
                 </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedRating("ALL");
+                    setSelectedSentiment("ALL");
+                    setSearchText("");
+                  }}
+                  className="
+                    mt-3
+                    inline-flex
+                    items-center
+                    gap-1.5
+                    rounded-lg
+                    bg-slate-100
+                    px-3
+                    py-1.5
+                    text-xs
+                    font-semibold
+                    text-slate-700
+                    hover:bg-slate-200
+                  "
+                >
+                  Đặt lại bộ lọc
+                </button>
               </div>
             ) : (
               paginatedReviews.map((review) => {

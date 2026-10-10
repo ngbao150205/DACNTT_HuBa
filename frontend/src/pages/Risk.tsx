@@ -224,9 +224,8 @@ function Risk() {
         setReviews(allReviews);
         setClientPage(1);
 
-        localStorage.setItem(
-          "activeProductId",
-          String(productId)
+        localStorage.removeItem(
+          "activeProductId"
         );
       } catch (err) {
         console.error(

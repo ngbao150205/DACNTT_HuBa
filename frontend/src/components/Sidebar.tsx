@@ -1,24 +1,14 @@
 import {
   History,
   Home,
-  LayoutDashboard,
   PlayCircle,
 } from "lucide-react";
 
 import {
   NavLink,
-  useParams,
 } from "react-router-dom";
 
 function Sidebar() {
-  const {
-    productId,
-  } = useParams();
-
-  const activeProductId =
-    productId ||
-    localStorage.getItem("activeProductId");
-
   const navItemClass = ({
     isActive,
   }: {
@@ -96,32 +86,6 @@ function Sidebar() {
           Lịch sử phân tích
         </NavLink>
       </nav>
-
-      {activeProductId && (
-        <div className="mt-8 shrink-0 border-t border-slate-800 pt-6">
-          <p
-            className="
-              mb-3
-              px-4
-              text-xs
-              font-semibold
-              uppercase
-              tracking-wide
-              text-slate-500
-            "
-          >
-            Sản phẩm hiện tại
-          </p>
-
-          <NavLink
-            to={`/products/${activeProductId}/dashboard`}
-            className={navItemClass}
-          >
-            <LayoutDashboard className="h-5 w-5" />
-            Dashboard kết quả
-          </NavLink>
-        </div>
-      )}
 
       <div className="mt-auto shrink-0 rounded-2xl bg-slate-900 p-4">
         <p className="text-xs font-semibold text-slate-300">

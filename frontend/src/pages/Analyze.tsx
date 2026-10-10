@@ -96,9 +96,8 @@ function Analyze() {
         );
       }
 
-      localStorage.setItem(
-        "activeProductId",
-        String(productId)
+      localStorage.removeItem(
+        "activeProductId"
       );
 
       localStorage.setItem(

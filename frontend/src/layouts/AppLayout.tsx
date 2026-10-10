@@ -1,25 +1,15 @@
 import {
   Home,
   History,
-  LayoutDashboard,
   PlayCircle,
 } from "lucide-react";
 
 import {
   NavLink,
   Outlet,
-  useParams,
 } from "react-router-dom";
 
 function AppLayout() {
-  const {
-    productId,
-  } = useParams();
-
-  const activeProductId =
-    productId ||
-    localStorage.getItem("activeProductId");
-
   const navItemClass = ({
     isActive,
   }: {
@@ -119,38 +109,6 @@ function AppLayout() {
             Lịch sử phân tích
           </NavLink>
         </nav>
-
-        {activeProductId && (
-          <div className="
-            mt-8
-            border-t
-            border-slate-800
-            pt-6
-          ">
-            <p className="
-              mb-3
-              px-4
-              text-xs
-              font-semibold
-              uppercase
-              tracking-wide
-              text-slate-500
-            ">
-              Sản phẩm hiện tại
-            </p>
-
-            <NavLink
-              to={`/products/${activeProductId}/dashboard`}
-              className={navItemClass}
-            >
-              <LayoutDashboard className="
-                h-5
-                w-5
-              " />
-              Dashboard kết quả
-            </NavLink>
-          </div>
-        )}
 
         <div className="
           mt-auto

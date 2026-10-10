@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: sentiment-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups:ro
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: ai-service/Dockerfile
+    container_name: sentiment-ai-service
+    env_file:
+      - .env
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  crawler-service:
+    build:
+      context: .
+      dockerfile: crawler-service/Dockerfile
+    container_name: sentiment-crawler-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8002:8002"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: sentiment-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+      crawler-service:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: sentiment-frontend
+    env_file:
+      - .env
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

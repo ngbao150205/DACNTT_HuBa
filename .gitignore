@@ -13,18 +13,19 @@ lerna-debug.log*
 
 
 # ==================================
+# Environment files
+# ==================================
+
+.env
+.env.*
+!.env.example
+# ==================================
 # Frontend - React / Vite
 # ==================================
 
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
-
-frontend/.env
-frontend/.env.*
-!frontend/.env.example
-
-*.local
 
 
 # ==================================
@@ -33,13 +34,8 @@ frontend/.env.*
 
 backend/venv/
 backend/.venv/
-
 backend/__pycache__/
 backend/**/*.py[cod]
-
-backend/.env
-backend/.env.*
-!backend/.env.example
 
 
 # ==================================
@@ -48,13 +44,18 @@ backend/.env.*
 
 ai-service/venv/
 ai-service/.venv/
-
 ai-service/__pycache__/
 ai-service/**/*.py[cod]
 
-ai-service/.env
-ai-service/.env.*
-!ai-service/.env.example
+
+# ==================================
+# Crawler Service - Python
+# ==================================
+
+crawler-service/venv/
+crawler-service/.venv/
+crawler-service/__pycache__/
+crawler-service/**/*.py[cod]
 
 
 # ==================================
@@ -63,6 +64,11 @@ ai-service/.env.*
 
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 
 # ==================================
@@ -76,10 +82,51 @@ __pycache__/
 
 
 # ==================================
+# Model / ML artifacts
+# ==================================
+
+*.h5
+*.keras
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.onnx
+*.bin
+*.vec
+*.npy
+*.npz
+
+# Nếu model trong ai-service/model cần chạy Docker thì KHÔNG ignore dòng dưới.
+# ai-service/model/
+
+
+# ==================================
 # Database
 # ==================================
 
+*.sqlite
 *.sqlite3
+*.db
+
+
+# ==================================
+# Backups
+# ==================================
+
+backups/*.sql
+backups/*.dump
+backups/*.backup
+!backups/.gitkeep
+
+
+# ==================================
+# Docker
+# ==================================
+
+.docker/
+docker-data/
+postgres_data/
 
 
 # ==================================

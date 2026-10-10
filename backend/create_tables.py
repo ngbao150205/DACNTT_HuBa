@@ -1,6 +1,6 @@
-from app.database.base import Base
-from app.database.connection import engine
-from app.database import models
+from database.base import Base
+from database.connection import engine
+from database import models
 
 
 print("Creating database tables...")

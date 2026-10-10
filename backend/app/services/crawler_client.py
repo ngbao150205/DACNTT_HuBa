@@ -1,7 +1,12 @@
+import os
 import requests
 
+from dotenv import load_dotenv
 
-CRAWLER_URL = "http://localhost:8002"
+load_dotenv()
+
+
+CRAWLER_URL = os.getenv("CRAWLER_SERVICE_URL", "http://localhost:8002")
 
 
 def crawl_product(url: str):

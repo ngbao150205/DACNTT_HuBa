@@ -18,8 +18,8 @@ if str(BASE_DIR) not in sys.path:
 # IMPORTS
 # ============================================================
 
-from app.database.connection import SessionLocal
-from app.database.models import Review, ReviewAnalysis
+from database.connection import SessionLocal
+from database.models import Review, ReviewAnalysis
 from app.services.risk_service import save_risk_detection
 
 

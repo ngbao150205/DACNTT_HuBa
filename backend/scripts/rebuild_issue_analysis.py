@@ -21,8 +21,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from sqlalchemy.orm import Session
 
-from app.database.connection import SessionLocal
-from app.database.models import Review
+from database.connection import SessionLocal
+from database.models import Review
 
 from app.services.issue_service import (
     save_issue_analysis

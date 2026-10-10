@@ -1,6 +1,7 @@
+from typing import Optional
 from sqlalchemy.orm import Session
 
-from app.database.models import (
+from database.models import (
     Product,
     Review
 )
@@ -10,7 +11,8 @@ def get_product_reviews(
     db: Session,
     product_id: int,
     page: int = 1,
-    page_size: int = 10
+    page_size: int = 10,
+    rating: Optional[int] = None
 ):
     """
     Lấy danh sách review của một product.
@@ -60,12 +62,15 @@ def get_product_reviews(
         .filter(
             Review.product_id == product.id
         )
-        .order_by(
-            Review.review_date.desc().nullslast(),
-            Review.id.desc()
-        )
     )
 
+    if rating is not None:
+        query = query.filter(Review.rating == rating)
+
+    query = query.order_by(
+        Review.review_date.desc().nullslast(),
+        Review.id.desc()
+    )
 
     # ========================================================
     # 4. TOTAL

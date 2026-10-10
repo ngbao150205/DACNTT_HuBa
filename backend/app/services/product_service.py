@@ -4,7 +4,7 @@ import json
 
 from sqlalchemy.orm import Session
 
-from app.database.models import (
+from database.models import (
     Product,
     Review,
     ReviewAnalysis,
@@ -314,7 +314,8 @@ def analyze_new_review(
     # ========================================================
 
     ai_result = predict_sentiment(
-        review.content
+        review.content,
+        rating=review.rating
     )
 
     if not isinstance(ai_result, dict):
@@ -431,7 +432,8 @@ def complete_existing_review_analysis(
     else:
 
         ai_result = predict_sentiment(
-            review.content
+            review.content,
+            rating=review.rating
         )
 
         if not isinstance(ai_result, dict):

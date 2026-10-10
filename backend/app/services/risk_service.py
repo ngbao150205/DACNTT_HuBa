@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.database.models import RiskDetection
+from database.models import RiskDetection
 
 
 # ============================================================

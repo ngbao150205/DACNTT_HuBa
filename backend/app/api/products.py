@@ -11,14 +11,16 @@ from app.schemas.product import (
     AnalyzeProductRequest,
 )
 
-from app.database.connection import (
+from database.connection import (
     get_db,
 )
 
-from app.database.models import (
+from database.models import (
     Product,
     Review,
 )
+
+from typing import Optional
 
 from app.services.product_service import (
     analyze_product,
@@ -26,6 +28,7 @@ from app.services.product_service import (
 
 from app.services.product_analysis_service import (
     get_product_analysis,
+    get_product_histories,
 )
 
 from app.services.review_service import (
@@ -169,9 +172,37 @@ def analyze_product_endpoint(
 @router.get("/{product_id}/analysis")
 def get_product_analysis_api(
     product_id: int,
+    history_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     result = get_product_analysis(
+        db=db,
+        product_id=product_id,
+        history_id=history_id,
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    return result
+
+
+# ============================================================
+# GET PRODUCT HISTORIES
+# ============================================================
+# Endpoint:
+#   GET /products/{product_id}/histories
+# ============================================================
+
+@router.get("/{product_id}/histories")
+def get_product_histories_api(
+    product_id: int,
+    db: Session = Depends(get_db),
+):
+    result = get_product_histories(
         db=db,
         product_id=product_id,
     )
@@ -182,7 +213,7 @@ def get_product_analysis_api(
             detail="Product not found",
         )
 
-    return result
+    return {"histories": result}
 
 
 # ============================================================
@@ -197,6 +228,7 @@ def get_product_reviews_api(
     product_id: int,
     page: int = 1,
     page_size: int = 10,
+    rating: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     result = get_product_reviews(
@@ -204,6 +236,7 @@ def get_product_reviews_api(
         product_id=product_id,
         page=page,
         page_size=page_size,
+        rating=rating,
     )
 
     if result is None:

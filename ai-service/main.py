@@ -4,13 +4,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from ensemble_predictor import ensemble_predict
+from custom_vocab_predictor import get_predictor, MODEL_NAME
+
+predictor = get_predictor()
 # =========================================================
 # APP
 # =========================================================
 
 app = FastAPI(
-    title="Sentiment Ensemble AI",
+    title="Underthesea Custom Vocab V3 Sentiment AI",
     description="Customer review sentiment analysis service",
     version="1.0.0"
 )
@@ -60,7 +62,9 @@ def home():
     return {
         "service": "Sentiment AI Service",
         "status": "running",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "model_name": MODEL_NAME,
+        "checkpoints": predictor.checkpoints,
     }
 
 
@@ -71,7 +75,9 @@ def home():
 @app.get("/health")
 def health():
     return {
-        "status": "healthy"
+        "status": "healthy",
+        "model_name": MODEL_NAME,
+        "checkpoints": predictor.checkpoints,
     }
 
 
@@ -84,12 +90,15 @@ def predict(
     review: ReviewRequest
 ):
     try:
-        result = ensemble_predict(
+        result = predictor.predict(
             text=review.text,
             rating=review.rating
         )
 
         return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
     except Exception as e:
         raise HTTPException(

@@ -129,14 +129,6 @@ function formatDate(value?: string | null): string {
   });
 }
 
-function formatConfidence(confidence?: number): string {
-  if (confidence === undefined || confidence === null) {
-    return "";
-  }
-
-  return `${Math.round(confidence * 1000) / 10}%`;
-}
-
 function getSentimentBadgeClass(sentiment?: string): string {
   if (sentiment === "Positive") {
     return "bg-green-100 text-green-700";
@@ -395,12 +387,12 @@ function Issues() {
         </h1>
 
         <p className="mt-2 max-w-5xl text-slate-500">
-          Trang này thống kê các vấn đề cụ thể được phát hiện từ review. Có thể
-          lọc theo nhóm vấn đề, cảm xúc dự đoán và nội dung review.
+          Trang này thống kê các vấn đề cụ thể được phát hiện từ review.
+          Có thể lọc theo nhóm vấn đề, cảm xúc dự đoán và nội dung review.
         </p>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-500">Tổng review đã tải</p>
           <p className="mt-2 text-3xl font-bold text-slate-900">
@@ -409,9 +401,9 @@ function Issues() {
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">Tổng vấn đề phát hiện</p>
+          <p className="text-sm text-slate-500">Review có vấn đề được phát hiện</p>
           <p className="mt-2 text-3xl font-bold text-slate-900">
-            {totalIssues}
+            {reviewsWithIssues.length}
           </p>
         </div>
 
@@ -421,75 +413,6 @@ function Issues() {
             {issueTypes.length}
           </p>
         </div>
-
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">Review có issue</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">
-            {reviewsWithIssues.length}
-          </p>
-        </div>
-      </div>
-
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-        <button
-          type="button"
-          onClick={() => setSelectedSentiment("ALL")}
-          className={`rounded-2xl border p-5 text-left shadow-sm transition ${
-            selectedSentiment === "ALL"
-              ? "border-blue-500 bg-blue-50"
-              : "border-slate-100 bg-white hover:bg-slate-50"
-          }`}
-        >
-          <p className="text-sm text-slate-500">Tất cả cảm xúc</p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">
-            {sentimentSummary.ALL}
-          </p>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSelectedSentiment("Positive")}
-          className={`rounded-2xl border p-5 text-left shadow-sm transition ${
-            selectedSentiment === "Positive"
-              ? "border-green-500 bg-green-50"
-              : "border-slate-100 bg-white hover:bg-slate-50"
-          }`}
-        >
-          <p className="text-sm text-slate-500">Positive</p>
-          <p className="mt-2 text-2xl font-bold text-green-700">
-            {sentimentSummary.Positive}
-          </p>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSelectedSentiment("Neutral")}
-          className={`rounded-2xl border p-5 text-left shadow-sm transition ${
-            selectedSentiment === "Neutral"
-              ? "border-slate-500 bg-slate-50"
-              : "border-slate-100 bg-white hover:bg-slate-50"
-          }`}
-        >
-          <p className="text-sm text-slate-500">Neutral</p>
-          <p className="mt-2 text-2xl font-bold text-slate-700">
-            {sentimentSummary.Neutral}
-          </p>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSelectedSentiment("Negative")}
-          className={`rounded-2xl border p-5 text-left shadow-sm transition ${
-            selectedSentiment === "Negative"
-              ? "border-red-500 bg-red-50"
-              : "border-slate-100 bg-white hover:bg-slate-50"
-          }`}
-        >
-          <p className="text-sm text-slate-500">Negative</p>
-          <p className="mt-2 text-2xl font-bold text-red-700">
-            {sentimentSummary.Negative}
-          </p>
-        </button>
       </div>
 
       <div className="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
@@ -625,7 +548,6 @@ function Issues() {
           <div className="space-y-4">
             {filteredIssues.map(({ review, issue }, index) => {
               const sentiment = review.sentiment?.sentiment;
-              const confidence = review.sentiment?.confidence;
 
               return (
                 <div
@@ -648,9 +570,6 @@ function Issues() {
                         )}`}
                       >
                         {sentiment}
-                        {confidence !== undefined
-                          ? ` · ${formatConfidence(confidence)}`
-                          : ""}
                       </span>
                     )}
 

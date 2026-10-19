@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -40,6 +42,8 @@ router = APIRouter(
     prefix="/products",
     tags=["Products"],
 )
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -156,6 +160,7 @@ def analyze_product_endpoint(
         )
 
     except Exception as e:
+        logger.exception("Product analysis failed")
         raise HTTPException(
             status_code=500,
             detail=str(e),

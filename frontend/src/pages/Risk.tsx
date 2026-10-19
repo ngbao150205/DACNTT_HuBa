@@ -41,18 +41,6 @@ function getReviewSentiment(review: ProductReview): string {
   return "";
 }
 
-function getReviewConfidence(review: ProductReview): number | null {
-  if (
-    review.sentiment &&
-    typeof review.sentiment !== "string" &&
-    typeof review.sentiment.confidence === "number"
-  ) {
-    return review.sentiment.confidence;
-  }
-
-  return null;
-}
-
 function getSentimentBadgeClass(sentiment: string): string {
   if (sentiment === "Positive") {
     return "bg-green-100 text-green-700";
@@ -882,9 +870,6 @@ function Risk() {
             const sentiment =
               getReviewSentiment(review);
 
-            const confidence =
-              getReviewConfidence(review);
-
             const riskLevel =
               review.risk?.risk_level;
 
@@ -999,15 +984,6 @@ function Risk() {
                       `}
                     >
                       {sentiment}
-
-                      {typeof confidence === "number" && (
-                        <span className="
-                          ml-1
-                          font-normal
-                        ">
-                          ({(confidence * 100).toFixed(1)}%)
-                        </span>
-                      )}
                     </span>
                   )}
 

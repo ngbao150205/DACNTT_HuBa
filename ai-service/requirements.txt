@@ -16,7 +16,7 @@ h11==0.16.0
 h5py>=3.11.0,<3.15.0
 idna==3.20
 joblib==1.6.0
-keras-nightly==3.16.0.dev2026093004
+keras==3.13.2
 libclang==18.1.1
 markdown-it-py==4.2.0
 mdurl==0.1.2
@@ -38,7 +38,7 @@ scikit-learn==1.6.1
 scipy==1.18.1
 six==1.17.0
 starlette==1.7.0
-tensorflow==2.22.0rc0
+tensorflow==2.21.0
 termcolor==3.3.0
 threadpoolctl==3.7.0
 typing-inspection==0.4.4
@@ -47,3 +47,5 @@ urllib3==2.8.0
 uvicorn==0.54.0
 wheel==0.48.0
 wrapt==2.5.0
+underthesea==9.5.0
+underthesea_core==3.3.2

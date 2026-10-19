@@ -1,0 +1,17 @@
+{
+  "max_len": 120,
+  "max_words": 50000,
+  "vocab_size": 7803,
+  "pad_token": "<PAD>",
+  "oov_token": "<OOV>",
+  "vi_keep": "0-9a-zA-Záàảãạâấầẩẫậăắằẳẵặéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđ",
+  "padding": "post",
+  "truncating": "pre",
+  "word_tokenizer": "underthesea",
+  "embedding_dim": 128,
+  "lstm_units": 128,
+  "dropout": 0.3,
+  "dense_units": 64,
+  "dense_dropout": 0.4,
+  "architecture": "Embedding + Bidirectional LSTM + Attention + GlobalAveragePooling1D + Dense"
+}

@@ -12,7 +12,7 @@ from database.models import (
 )
 
 from app.services.crawler_client import crawl_product
-from app.services.ai_client import predict_sentiment
+from app.services.ai_client import predict_sentiment, UnanalyzableReview
 from app.services.issue_service import save_issue_analysis
 from app.services.risk_service import save_risk_detection
 from app.services.category_service import detect_product_category
@@ -24,7 +24,7 @@ from app.services.category_service import detect_product_category
 
 PLATFORM = "tiki"
 
-MODEL_VERSION = "ensemble_v1"
+MODEL_VERSION = "underthesea_bilstm_custom_vocab_v3"
 
 
 # ============================================================
@@ -268,7 +268,7 @@ def create_review_analysis(
         review_id=review.id,
         sentiment=sentiment,
         confidence=confidence,
-        model_version=MODEL_VERSION,
+        model_version=final_result.get("model_name") or MODEL_VERSION,
         analysis_method=method,
     )
 
@@ -860,6 +860,7 @@ def analyze_product(
         new_reviews = []
         processed_existing_reviews = []
         skipped_reviews = []
+        unanalyzable_review_ids = []
         failed_reviews = []
 
         for review_data in crawled_reviews:
@@ -924,6 +925,10 @@ def analyze_product(
                         result
                     )
 
+                except UnanalyzableReview:
+                    # Keep the original review, without assigning a sentiment.
+                    unanalyzable_review_ids.append(str(review_id))
+
                 except Exception:
 
                     failed_reviews.append(
@@ -961,6 +966,10 @@ def analyze_product(
                 new_reviews.append(
                     analysis_result
                 )
+
+            except UnanalyzableReview:
+                # Emoji/punctuation-only reviews must not abort the product.
+                unanalyzable_review_ids.append(str(review_id))
 
             except Exception:
 
@@ -1114,6 +1123,8 @@ def analyze_product(
             "failed_reviews": len(
                 failed_reviews
             ),
+            "unanalyzable_reviews": len(unanalyzable_review_ids),
+            "unanalyzable_review_ids": unanalyzable_review_ids,
             "analysis": analysis,
             "analysis_history_id": history.id,
             "reviews": response_reviews,

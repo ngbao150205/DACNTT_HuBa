@@ -263,13 +263,13 @@ def get_text_evidence(text: str) -> dict[str, Any]:
 
 def decide_base_ensemble(
     rating: int | None,
-    ft_label: str,
-    ft_conf: float,
-    ks_label: str,
-    ks_conf: float,
+    primary_label: str,
+    primary_conf: float,
+    keras_label: str,
+    keras_conf: float,
     evidence: dict[str, Any],
 ) -> tuple[str, float, str]:
-    confidence_gap = abs(ft_conf - ks_conf)
+    confidence_gap = abs(primary_conf - keras_conf)
 
     positive_score = evidence["positive_score"]
     negative_score = evidence["negative_score"]
@@ -278,25 +278,25 @@ def decide_base_ensemble(
     has_strong_negative = evidence["has_strong_negative"]
 
     # CASE 1: Two models agree.
-    if ft_label == ks_label:
+    if primary_label == keras_label:
         return (
-            ft_label,
-            max(ft_conf, ks_conf),
+            primary_label,
+            max(primary_conf, keras_conf),
             "models_agree",
         )
 
     # CASE 2: Models disagree, but confidence gap is large.
     if confidence_gap >= 0.20:
-        if ft_conf > ks_conf:
+        if primary_conf > keras_conf:
             return (
-                ft_label,
-                ft_conf,
-                "fasttext_large_gap",
+                primary_label,
+                primary_conf,
+                "primary_model_large_gap",
             )
 
         return (
-            ks_label,
-            ks_conf,
+            keras_label,
+            keras_conf,
             "keras_large_gap",
         )
 
@@ -519,42 +519,61 @@ def apply_final_guards(
 # ============================================================
 # MAIN DECISION FUNCTION
 # ============================================================
-
 def decide_result(
     text,
     rating,
-    fasttext_result,
-    keras_result,
+    primary_model_result=None,
+    keras_result=None,
+    fasttext_result=None,
 ):
+    """
+    Decide final sentiment from:
+    - primary_model_result: current primary model, now BiLSTM
+    - keras_result: secondary Keras/TensorFlow model
+
+    fasttext_result is kept only for backward compatibility.
+    """
+
     text = normalize_text(text)
     rating = normalize_rating(rating)
 
-    ft_label = normalize_label(
-        fasttext_result.get("label")
+    if primary_model_result is None:
+        primary_model_result = fasttext_result
+
+    if primary_model_result is None:
+        primary_model_result = {}
+
+    if keras_result is None:
+        keras_result = {}
+
+    primary_label = normalize_label(
+        primary_model_result.get("label")
+        or primary_model_result.get("sentiment")
     )
 
-    ks_label = normalize_label(
+    keras_label = normalize_label(
         keras_result.get("label")
+        or keras_result.get("sentiment")
     )
 
-    ft_conf = normalize_confidence(
-        fasttext_result.get("confidence")
+    primary_conf = normalize_confidence(
+        primary_model_result.get("confidence")
     )
 
-    ks_conf = normalize_confidence(
+    keras_conf = normalize_confidence(
         keras_result.get("confidence")
     )
 
-    confidence_gap = abs(ft_conf - ks_conf)
+    confidence_gap = abs(primary_conf - keras_conf)
 
     evidence = get_text_evidence(text)
 
     final_label, final_confidence, method = decide_base_ensemble(
         rating=rating,
-        ft_label=ft_label,
-        ft_conf=ft_conf,
-        ks_label=ks_label,
-        ks_conf=ks_conf,
+        primary_label=primary_label,
+        primary_conf=primary_conf,
+        keras_label=keras_label,
+        keras_conf=keras_conf,
         evidence=evidence,
     )
 
@@ -594,10 +613,16 @@ def decide_result(
         "evidence": evidence,
 
         "debug": {
-            "fasttext_label": ft_label,
-            "fasttext_confidence": ft_conf,
-            "keras_label": ks_label,
-            "keras_confidence": ks_conf,
+            "primary_model_label": primary_label,
+            "primary_model_confidence": primary_conf,
+            "primary_model_name": primary_model_result.get(
+                "model_name",
+                "primary_model",
+            ),
+
+            "keras_label": keras_label,
+            "keras_confidence": keras_conf,
+
             "confidence_gap": round(
                 confidence_gap,
                 4,

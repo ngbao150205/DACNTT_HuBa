@@ -27,7 +27,7 @@ from database.models import Review, ReviewAnalysis
 from app.services.ai_client import predict_sentiment
 
 
-MODEL_VERSION = "ensemble_v2"
+MODEL_VERSION = "underthesea_bilstm_custom_vocab_v3"
 
 
 # ============================================================
@@ -150,7 +150,7 @@ def rebuild_sentiment_analysis(
 
             analysis.sentiment = sentiment
             analysis.confidence = confidence
-            analysis.model_version = MODEL_VERSION
+            analysis.model_version = final_result.get("model_name") or MODEL_VERSION
             analysis.analysis_method = method
 
             review.is_analyzed = True

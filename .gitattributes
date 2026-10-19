@@ -1,0 +1,6 @@
+# Keep shell entrypoints executable by Linux containers after Windows clones.
+*.sh text eol=lf
+
+# Preserve the v3 artifacts byte-for-byte across platforms.
+ai-service/models/underthesea_bilstm_custom_vocab_v3/fold[1-5].keras binary
+ai-service/models/underthesea_bilstm_custom_vocab_v3/label_encoder.pkl binary

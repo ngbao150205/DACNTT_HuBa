@@ -1,9 +1,19 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+
+from database.init_db import init_db
 
 from app.api.products import router as product_router
 
 from fastapi.middleware.cors import CORSMiddleware
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create missing tables before accepting requests; preserve existing data.
+    init_db()
+    yield
 
 
 app = FastAPI(
@@ -13,7 +23,9 @@ app = FastAPI(
     description=
     "Crawler + Sentiment Analysis System",
 
-    version="1.0.0"
+    version="1.0.0",
+
+    lifespan=lifespan,
 
 )
 

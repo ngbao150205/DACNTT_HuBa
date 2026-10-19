@@ -97,8 +97,9 @@ __pycache__/
 *.npy
 *.npz
 
-# Nếu model trong ai-service/model cần chạy Docker thì KHÔNG ignore dòng dưới.
-# ai-service/model/
+# Ship only the active v3 weights/encoder with source for reproducible clones.
+!ai-service/models/underthesea_bilstm_custom_vocab_v3/fold[1-5].keras
+!ai-service/models/underthesea_bilstm_custom_vocab_v3/label_encoder.pkl
 
 
 # ==================================

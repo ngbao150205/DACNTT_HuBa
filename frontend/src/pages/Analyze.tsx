@@ -77,8 +77,11 @@ function Analyze() {
         );
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
         throw new Error(
-          `Phân tích thất bại. HTTP ${response.status}`
+          typeof errorData?.detail === "string"
+            ? errorData.detail
+            : `Phân tích thất bại. HTTP ${response.status}`
         );
       }
 

@@ -1,24 +1,38 @@
 import os
 import requests
-
 from dotenv import load_dotenv
 
 load_dotenv()
-
-
 CRAWLER_URL = os.getenv("CRAWLER_SERVICE_URL", "http://localhost:8002")
 
 
+class CrawlerServiceError(RuntimeError):
+    """A crawler failure with an HTTP status suitable for the backend API."""
+
+    def __init__(self, detail: str, status_code: int = 502, retry_after: str | None = None):
+        super().__init__(detail)
+        self.status_code = status_code
+        self.retry_after = retry_after
+
+
 def crawl_product(url: str):
-
-    response = requests.post(
-        f"{CRAWLER_URL}/crawl",
-        json={
-            "url": url
-        },
-        timeout=120
-    )
-
-    response.raise_for_status()
-
-    return response.json()
+    try:
+        response = requests.post(f"{CRAWLER_URL}/crawl", json={"url": url}, timeout=(5, None))
+    except requests.Timeout as error:
+        raise CrawlerServiceError("Crawler Lazada hết thời gian phản hồi.", 504) from error
+    except requests.RequestException as error:
+        raise CrawlerServiceError("Không kết nối được crawler Lazada.") from error
+    try:
+        data = response.json()
+    except ValueError as error:
+        raise CrawlerServiceError("Nguồn thu thập trả dữ liệu không hợp lệ; kiểm tra log crawler.") from error
+    if response.status_code != 200:
+        detail = data.get("detail") if isinstance(data, dict) else None
+        message = detail if isinstance(detail, str) else "Crawler Lazada không xử lý được yêu cầu."
+        status = 400 if response.status_code in {400, 422} else response.status_code if response.status_code in {429, 503} else 502
+        retry = getattr(response, "headers", {}).get("Retry-After")
+        raise CrawlerServiceError(message, status, retry_after=retry if isinstance(retry, str) else None)
+    if not isinstance(data, dict) or data.get("platform") != "lazada":
+        raise CrawlerServiceError("Crawler chưa chạy phiên bản Lazada; hãy build lại crawler-service.")
+    data["collection_provider"] = "crawler"
+    return data

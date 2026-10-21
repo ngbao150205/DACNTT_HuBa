@@ -56,6 +56,8 @@ crawler-service/venv/
 crawler-service/.venv/
 crawler-service/__pycache__/
 crawler-service/**/*.py[cod]
+crawler-service/artifacts/
+crawler-service/browser-checkpoints/
 
 
 # ==================================
@@ -76,8 +78,10 @@ __pycache__/
 # ==================================
 
 *.csv
+!examples/reviews.csv
 *.xlsx
 *.xls
+!backend/tests/fixtures/reviews.xls
 *.jsonl
 
 
@@ -151,3 +155,21 @@ postgres_data/
 # ==================================
 
 .DS_Store
+
+# Local sessions, credentials and generated crawler output
+cookies*.json
+**/cookies*.json
+**/storage_state*.json
+**/playwright/.auth/
+*.har
+*.pem
+*.key
+crawler-service/exports/
+crawler-service/data/
+artifacts/
+playwright-report/
+test-results/
+
+# Only the active model directory belongs in source control.
+ai-service/models/*
+!ai-service/models/underthesea_bilstm_custom_vocab_v3/

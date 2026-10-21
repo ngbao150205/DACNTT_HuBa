@@ -255,7 +255,7 @@ function History() {
                       </span>
 
                       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                        {product.platform}
+                        {product.platform === "import" ? "Tải từ file" : product.platform}
                       </span>
 
                       {product.category && (
@@ -270,13 +270,13 @@ function History() {
                     </h2>
 
                     <p className="mt-2 break-all text-sm text-slate-500">
-                      {product.url}
+                      {product.url || "Dữ liệu đánh giá tải từ file"}
                     </p>
 
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                      <span className="rounded-full bg-slate-100 px-3 py-1">
+                      {product.platform !== "import" && <span className="rounded-full bg-slate-100 px-3 py-1">
                         Platform ID: {product.platform_product_id}
-                      </span>
+                      </span>}
 
                       <span className="rounded-full bg-slate-100 px-3 py-1">
                         Review: {formatNumber(product.total_reviews)}
@@ -288,7 +288,7 @@ function History() {
 
                       {product.last_crawled_at && (
                         <span className="rounded-full bg-slate-100 px-3 py-1">
-                          Crawl gần nhất: {formatDate(product.last_crawled_at)}
+                          Cập nhật gần nhất: {formatDate(product.last_crawled_at)}
                         </span>
                       )}
                     </div>

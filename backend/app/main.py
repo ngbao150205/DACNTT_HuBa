@@ -5,6 +5,9 @@ from fastapi import FastAPI
 from database.init_db import init_db
 
 from app.api.products import router as product_router
+from app.api.collections import router as collection_router
+from app.api.auth import router as auth_router
+from app.security.auth import allowed_origins
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -21,7 +24,7 @@ app = FastAPI(
     title="Product Review Analysis API",
 
     description=
-    "Crawler + Sentiment Analysis System",
+    "Hybrid URL / Extension / File Collection + Sentiment Analysis System",
 
     version="1.0.0",
 
@@ -31,10 +34,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=list(allowed_origins()),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,9 +42,19 @@ app.add_middleware(
 
 
 
+@app.middleware("http")
+async def private_response_headers(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith(("/auth/", "/products", "/collections")):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 app.include_router(
     product_router
 )
+app.include_router(collection_router)
+app.include_router(auth_router)
 
 
 

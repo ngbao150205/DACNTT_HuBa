@@ -1,0 +1,3 @@
+review_id,content,rating,customer_name,created_at
+sample-1,"Sản phẩm tốt, giao hàng nhanh",5,Người mua A,2026-10-01
+sample-2,"Hàng không giống mô tả, đóng gói bị hỏng",1,Người mua B,2026-10-02

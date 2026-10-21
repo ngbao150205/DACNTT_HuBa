@@ -3,6 +3,9 @@ import {
   createBrowserRouter,
 } from "react-router-dom";
 
+import { RequireAuth } from "../auth/AuthContext";
+import Auth from "../pages/Auth";
+import Account from "../pages/Account";
 import DashboardLayout from "../layouts/DashboardLayout";
 import ProductAnalysisLayout from "../layouts/ProductAnalysisLayout";
 
@@ -17,6 +20,9 @@ import Risk from "../pages/Risk";
 import Competitor from "../pages/Competitor";
 
 const router = createBrowserRouter([
+  ...(["login", "register", "forgot-password", "reset-password"] as const).map(mode => ({path: `/${mode}`, element: <Auth key={mode} mode={mode} />})),
+  {element: <RequireAuth />, children: [
+  {path: "/account", element: <DashboardLayout><Account /></DashboardLayout>},
   {
     path: "/",
     element: (
@@ -139,6 +145,7 @@ const router = createBrowserRouter([
     path: "*",
     element: <Navigate to="/" replace />,
   },
+  ]},
 ]);
 
 export default router;

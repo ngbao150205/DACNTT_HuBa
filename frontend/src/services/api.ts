@@ -1,3 +1,4 @@
+import { API_BASE_URL, apiFetch } from "./http";
 import type {
   ProductAnalysisResponse,
 } from "../types/product";
@@ -9,8 +10,7 @@ import type {
  * ============================================================
  */
 
-const API_BASE_URL =
-  "http://127.0.0.1:8000";
+
 
 
 /*
@@ -163,7 +163,7 @@ export interface ProductAnalysisApiResponse {
  *
  * POST /products/analyze
  *
- * Dùng khi user nhập URL Tiki.
+ * Dùng khi user nhập URL Lazada.
  */
 
 export interface AnalyzeProductResponse
@@ -270,7 +270,7 @@ export async function analyzeProduct(
 
 
   const response =
-    await fetch(
+    await apiFetch(
       `${API_BASE_URL}/products/analyze`,
       {
         method: "POST",
@@ -335,7 +335,7 @@ export async function getProductAnalysis(
     ? `${API_BASE_URL}/products/${productId}/analysis?history_id=${historyId}`
     : `${API_BASE_URL}/products/${productId}/analysis`;
 
-  const response = await fetch(url);
+  const response = await apiFetch(url);
 
   if (!response.ok) {
     throw new Error(
@@ -351,7 +351,7 @@ export async function getProductAnalysis(
 export async function getProductHistories(
   productId: string | number
 ): Promise<{ histories: AnalysisHistoryItem[] }> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/products/${productId}/histories`
   );
 
@@ -394,7 +394,7 @@ export async function getProductReviews(
     params.set("rating", String(rating));
   }
 
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/products/${productId}/reviews?${params.toString()}`
   );
 
@@ -430,7 +430,7 @@ export async function checkApiHealth(): Promise<boolean> {
   try {
 
     const response =
-      await fetch(
+      await apiFetch(
         `${API_BASE_URL}/docs`,
         {
           method: "GET",
@@ -471,7 +471,7 @@ export type ProductHistoryResponse = {
 };
 
 export async function getProductHistory(): Promise<ProductHistoryResponse> {
-  const response = await fetch(`${API_BASE_URL}/products`);
+  const response = await apiFetch(`${API_BASE_URL}/products`);
 
   if (!response.ok) {
     throw new Error(

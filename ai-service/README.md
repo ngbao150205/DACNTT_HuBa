@@ -19,7 +19,7 @@ Luồng chạy:
 
 Không nạp/chạy model attention cũ, Keras LSTM cũ, FastText hoặc RandomForest.
 AI-service chỉ trả kết quả model. Rating được nhận và trả lại, không tham gia
-inference. `ensemble_predictor.py` chỉ là wrapper tương thích gọi bộ mới.
+inference. Các loader/predictor cũ đã được loại bỏ; API chỉ gọi custom_vocab_predictor.
 Checkpoint được nạp một lần khi khởi động, với đường dẫn tính từ file predictor.
 Văn bản rỗng sau clean trả HTTP 422.
 
@@ -88,4 +88,5 @@ curl -fsS http://127.0.0.1:8001/predict \
   -d '{"text":"sản phẩm rất tốt giao hàng nhanh","rating":5}'
 ```
 
-Các lệnh này kiểm tra API đang chạy; bản source hiện tại không kèm bộ unit test.
+Các lệnh này kiểm tra API đang chạy; AI service hiện không kèm bộ unit test.
+Kiểm thử tích hợp crawler/backend Lazada được hướng dẫn trong README tổng.

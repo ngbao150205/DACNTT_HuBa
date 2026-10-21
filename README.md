@@ -1,6 +1,6 @@
-# DuanCNTT — Hệ thống phân tích đánh giá sản phẩm Tiki
+# DuanCNTT — Hệ thống phân tích đánh giá sản phẩm Lazada
 
-Ứng dụng thu thập đánh giá tiếng Việt từ Tiki, phân tích cảm xúc bằng model
+Ứng dụng thu thập đánh giá tiếng Việt từ Lazada, phân tích cảm xúc bằng model
 `underthesea_bilstm_custom_vocab_v3`, áp dụng rule ở backend khi model chưa đủ
 tin cậy, phân loại vấn đề và phát hiện rủi ro. Kết quả được lưu trong PostgreSQL
 để xem dashboard, review và lịch sử các lần phân tích.
@@ -11,7 +11,7 @@ Cài Git, mở Docker Desktop/Engine, rồi chạy:
 
 ```bash
 # 1. Clone source kèm model v3
-git clone ...
+git clone --branch dev https://github.com/ngbao150205/DACNTT_HuBa.git DuanCNTT
 cd DuanCNTT
 
 # 2. Tạo .env từ cấu hình mẫu
@@ -30,6 +30,22 @@ Không cần chạy lệnh build hay tạo bảng riêng. Model v3 đã đi kèm
 Lần đầu có thể mất vài phút để tải dependency và nạp 5 fold của model.
 
 Các mục bên dưới là tài liệu tham khảo, không phải các bước bắt buộc bổ sung.
+
+## Hai cách phân tích dữ liệu
+
+1. **URL sản phẩm:** nhập URL Lazada, hệ thống gọi hàm `crawl_lazada_reviews`
+   do chủ dự án cung cấp. Quản trị viên đặt `LAZADA_COOKIE` trong `.env`;
+   crawler đọc lại cookie mỗi lượt crawl mới, không cần restart khi thay cookie.
+2. **Tải file CSV / Excel:** nhập tên sản phẩm, chọn `.csv`, `.xlsx` hoặc `.xls`,
+   rồi phân tích. Không cần URL, cookie hay khóa API. File cùng tên sản phẩm
+   được gộp và loại review trùng trong cùng tài khoản.
+
+Không cần Chrome Extension hay n8n. URL gọi trực tiếp crawler dùng cookie. Dữ liệu vẫn lưu PostgreSQL và dùng chung
+model v3 / rule backend. Cookie không đảm bảo nguồn luôn cho phép lấy hết review;
+gặp chặn thì dừng và giữ dữ liệu đã lấy, không báo đã thu thập đủ.
+
+Xem [hướng dẫn URL / CSV / Excel](HYBRID_COLLECTION.md). Cookie nằm trong `.env`
+cục bộ và không được đưa vào Git, log hay giao diện.
 
 ## Mục lục
 
@@ -54,7 +70,8 @@ Các mục bên dưới là tài liệu tham khảo, không phải các bước 
 
 | Chức năng | Cách hoạt động |
 | --- | --- |
-| Phân tích sản phẩm | Nhập URL Tiki, crawl review, phân tích và lưu database |
+| Phân tích sản phẩm | Nhập URL Lazada, crawl review, phân tích và lưu database |
+| Tải CSV / Excel | Chỉ cần tên sản phẩm và file, gộp/chống trùng và phân tích theo tài khoản |
 | Sentiment | `Positive`, `Neutral`, `Negative` từ model và decision layer |
 | Dashboard | Tổng số review, phân bố sentiment, nhóm vấn đề và rủi ro |
 | Review | Xem nội dung, rating, sentiment, issue/risk; API có phân trang và lọc rating |
@@ -72,13 +89,15 @@ bị đánh dấu rủi ro chỉ vì có bản ghi trong bảng `risk_detection`
 
 Các giới hạn cần hiểu khi sử dụng:
 
-- Crawler hiện thực cho **Tiki**; tên model/dataset không có nghĩa đã hỗ trợ crawl các sàn khác.
+- Crawler đang hoạt động chỉ nhận URL đầy đủ của **Lazada Việt Nam**. Dữ liệu Tiki đã lưu vẫn xem được; không đổi nhãn sàn cho dữ liệu cũ.
 - Trang `Competitor` hiện là placeholder; chưa có quy trình so sánh đối thủ hoàn chỉnh.
-- Chưa có luồng đăng nhập, phân quyền hoặc quản lý nhiều tài khoản.
+- Có đăng ký, đăng nhập, đăng xuất và quên mật khẩu; dữ liệu được tách theo tài khoản.
+  Mailpit chỉ nhận email thử nghiệm trên máy local.
 - Phân tích là request đồng bộ, xử lý review lần lượt; chưa có hàng đợi tác vụ/background job.
-- Crawler mặc định thử tối đa **20 trang × 20 review/trang**. Sau khi lọc nội dung
-  rỗng và review trùng, số review lưu được có thể thấp hơn; không đồng nghĩa toàn
-  bộ review công khai của sản phẩm đã được thu thập.
+- Crawler mặc định **không giới hạn số review, số trang hoặc thời gian tổng**.
+  Đọc đến hết các trang API trả về, chỉ giữ bình luận có nội dung và chống trùng ID.
+  Mỗi request mạng có timeout. Chế độ cookie dừng khi gặp chặn/lỗi và giữ dữ liệu
+  đã có với `PARTIAL`; không chuyển sang nguồn khác để tiếp tục phiên bị chặn.
 - Repo hiện chứa inference, kiểm thử và bộ weights v3 đi kèm source; chưa có
   pipeline train đầy đủ để tái tạo model từ dataset ngay sau khi clone.
 
@@ -86,11 +105,13 @@ Các giới hạn cần hiểu khi sử dụng:
 
 ```text
 Trình duyệt → Frontend React → Backend FastAPI
-                                ├─ Crawler Service → Tiki API
+                                ├─ Crawler Service → hàm crawl + Cookie → Lazada
                                 ├─ AI Service → 5 fold của model v3
                                 ├─ Decision Layer → final sentiment
                                 ├─ Issue / Risk Rules
                                 └─ PostgreSQL → dashboard / review / lịch sử
+
+CSV / Excel + tên sản phẩm → API xác thực → Backend → cùng pipeline AI / database
 ```
 
 ### Các service
@@ -102,6 +123,7 @@ Trình duyệt → Frontend React → Backend FastAPI
 | `ai-service` | TensorFlow 2.21.0, Keras 3.13.2, Underthesea | `http://127.0.0.1:8001` | `http://ai-service:8001` |
 | `crawler-service` | FastAPI, curl_cffi | `http://127.0.0.1:8002` | `http://crawler-service:8002` |
 | `postgres` | PostgreSQL 16 | `127.0.0.1:5433` | `postgres:5432` |
+| `mailpit` | Hộp thư reset mật khẩu thử nghiệm | `http://localhost:8025` | SMTP `mailpit:1025` |
 
 Phiên bản phụ thuộc chi tiết nằm trong `*/requirements.txt` và
 `frontend/package-lock.json`. Dockerfile là tham chiếu môi trường chạy.
@@ -133,27 +155,30 @@ DuanCNTT/
 │   │   └── product_analysis_service.py
 │   ├── app/rules/                 # JSON rule sentiment, issue, risk đang dùng
 │   ├── scripts/                   # Phân tích lại dữ liệu đã lưu
+│   ├── tests/                     # Kiểm thử tích hợp Lazada bằng SQLite
 │   └── create_tables.py
 ├── ai-service/
 │   ├── main.py                    # GET /health, POST /predict
 │   ├── custom_vocab_predictor.py  # Predictor đang hoạt động
-│   ├── ensemble_predictor.py      # Wrapper tương thích, vẫn chỉ gọi model v3
 │   ├── models/underthesea_bilstm_custom_vocab_v3/
 │   └── README.md                  # Chi tiết inference
 ├── crawler-service/
 │   ├── main.py                    # Entry point thực tế trong Docker
-│   └── tiki_crawler.py
+│   ├── cookie_crawler.py          # Hàm crawl đang hoạt động, cookie đọc mỗi lượt
+│   ├── lazada_common.py           # Kiểm tra URL và chuẩn hóa ngày
+│   └── tests/                     # Kiểm thử offline và fixture cho E2E
 ├── database/
-│   ├── models.py                  # Khai báo 6 bảng SQLAlchemy
+│   ├── models.py                  # 6 bảng hiện có + review_collections audit nhập dữ liệu
 │   ├── connection.py              # Engine / session / get_db
 │   ├── init_db.py
 │   └── init/01-restore-backup.sh   # Import backup tùy chọn khi volume mới
 └── backups/                       # Tự tạo nếu bản clone chưa có
 ```
 
-Các predictor/model cũ có thể còn trong repo để tham khảo, nhưng không được nạp
-trong luồng `/predict`. Rule sentiment đang hoạt động nằm trong **backend**;
-file `ai-service/decision_layer.py` không tham gia luồng hiện tại.
+AI service chỉ giữ predictor và bộ model v3 đang chạy. Rule sentiment đặt tại
+`backend/app/services/decision_layer.py` và `backend/app/rules`; không còn
+loader hay rule sentiment trùng lặp ở AI service. Chromium chỉ dùng trong
+image kiểm thử giao diện tùy chọn, không được cài vào crawler ứng dụng.
 
 ## 3. Chuẩn bị máy, mã nguồn và model
 
@@ -161,8 +186,8 @@ file `ai-service/decision_layer.py` không tham gia luồng hiện tại.
 
 - Git để clone repo.
 - Docker Engine/Desktop đang chạy và Docker Compose v2 (`docker compose`).
-- Internet để tải image, Python/npm packages và crawl Tiki.
-- Các cổng host `5173`, `8000`, `8001`, `8002`, `5433` chưa bị ứng dụng khác chiếm.
+- Internet để tải image, Python/npm packages và crawl Lazada.
+- Các cổng host `5173`, `8000`, `8001`, `8002`, `5433`, `5678` chưa bị ứng dụng khác chiếm.
 - Khuyến nghị dành khoảng 8 GB RAM cho môi trường Docker và ít nhất 10 GB dung
   lượng trống cho image, cache build và dữ liệu. Đây là gợi ý vận hành, không phải
   cấu hình tối thiểu đã benchmark. Inference hiện có thể chạy bằng CPU.
@@ -238,11 +263,12 @@ healthcheck. Với source đã có image cũ trên máy, xem cách build lại t
 curl -fsS http://127.0.0.1:8000/
 curl -fsS http://127.0.0.1:8001/health
 curl -fsS http://127.0.0.1:8002/
-curl -fsS http://127.0.0.1:8000/products
+curl -fsS http://127.0.0.1:8000/products -H "Authorization: Bearer $PERSONAL_API_TOKEN"
 ```
 
 - AI health phải báo `model_name = underthesea_bilstm_custom_vocab_v3` và 5 checkpoint.
-- Với database vừa tạo, `/products` trả `{"products":[]}` là bình thường.
+- Lệnh `/products` cần PERSONAL_API_TOKEN tạo qua Swagger (xem AUTHENTICATION.md); thiếu xác thực trả 401.
+- Với tài khoản mới, `/products` trả `{"products":[]}` là bình thường.
 - Backend hoàn tất tạo schema trước khi phục vụ; `/products` kiểm tra truy vấn database hiện tại.
 - Nếu vừa khởi động mà chưa kết nối được, xem log và đợi service sẵn sàng.
 
@@ -279,32 +305,34 @@ So sánh `model_result.confidence`, `final.rules_applied`, `final.method` và
 
 ### 5.4. Phân tích sản phẩm trên giao diện
 
-1. Mở trang chủ, chọn **Bắt đầu phân tích** (`/analyze`).
-2. Dán URL sản phẩm Tiki dạng `https://tiki.vn/ten-san-pham-p123456789.html`.
-   Giữ query `?spid=...` nếu URL có, vì nó xác định biến thể sản phẩm.
+1. Đăng ký / đăng nhập ở trang chủ, chọn **Bắt đầu phân tích** (`/analyze`).
+2. Dán URL sản phẩm Lazada dạng `https://www.lazada.vn/products/pdp-i3215038850-s116979513497.html`.
+   Dùng link đầy đủ chứa `-i<itemId>-s<skuId>.html`; link rút gọn cần mở trong trình duyệt để lấy URL đầy đủ. Query quảng cáo được bỏ qua.
 3. Nhấn phân tích và đợi request hoàn tất. Không bấm gửi liên tục trong lúc xử lý.
 4. Giao diện điều hướng đến `/products/{product_db_id}/dashboard`.
 5. Xem Reviews, Issues, Risk và trang History (`/history`).
 
 Lần đầu có thể mất vài phút do crawl nhiều trang và chạy 5 fold cho từng review.
-Tiki có thể trả dữ liệu thiếu hoặc chặn request; đây không phải tác vụ offline.
+Lazada có thể trả dữ liệu thiếu hoặc chặn request; đây không phải tác vụ offline.
 
-Nếu muốn gọi bằng terminal, thay URL ví dụ dưới bằng URL Tiki thực tế còn hợp lệ:
+Nếu muốn gọi bằng terminal, tạo khóa qua `POST /auth/api-token` trong Swagger
+như [hướng dẫn xác thực](AUTHENTICATION.md#nhập-dữ-liệu), đặt vào biến PERSONAL_API_TOKEN rồi thay URL ví dụ bằng URL Lazada thực tế còn hợp lệ:
 
 ```bash
 curl -sS --max-time 600 http://127.0.0.1:8000/products/analyze \
+  -H "Authorization: Bearer $PERSONAL_API_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"url":"https://tiki.vn/ten-san-pham-p123456789.html?spid=123456790"}'
+  -d '{"url":"https://www.lazada.vn/products/pdp-i3215038850-s116979513497.html"}'
 ```
 
 Lấy **`product_db_id`** trong response để gọi các API tiếp theo; đây là ID nội bộ,
-khác `product_id`/`platform_product_id` của Tiki.
+khác `product_id`/`platform_product_id` của Lazada.
 
 ```bash
 SENTIMENT_PRODUCT_DB_ID=1 # Thay bằng product_db_id thực tế
-curl -fsS "http://127.0.0.1:8000/products/${SENTIMENT_PRODUCT_DB_ID}/analysis"
-curl -fsS "http://127.0.0.1:8000/products/${SENTIMENT_PRODUCT_DB_ID}/histories"
-curl -fsS "http://127.0.0.1:8000/products/${SENTIMENT_PRODUCT_DB_ID}/reviews?page=1&page_size=10"
+curl -fsS "http://127.0.0.1:8000/products/${SENTIMENT_PRODUCT_DB_ID}/analysis" -H "Authorization: Bearer $PERSONAL_API_TOKEN"
+curl -fsS "http://127.0.0.1:8000/products/${SENTIMENT_PRODUCT_DB_ID}/histories" -H "Authorization: Bearer $PERSONAL_API_TOKEN"
+curl -fsS "http://127.0.0.1:8000/products/${SENTIMENT_PRODUCT_DB_ID}/reviews?page=1&page_size=10" -H "Authorization: Bearer $PERSONAL_API_TOKEN"
 ```
 
 ## 6. Luồng xử lý và model AI
@@ -312,7 +340,7 @@ curl -fsS "http://127.0.0.1:8000/products/${SENTIMENT_PRODUCT_DB_ID}/reviews?pag
 ### 6.1. Luồng phân tích sản phẩm
 
 1. `POST /products/analyze` nhận URL.
-2. Backend gọi crawler; crawler tách Tiki product ID và `spid`, lấy tên/review,
+2. Backend gọi crawler; crawler tách Lazada `itemId` và `skuId`, gọi endpoint đánh giá, lấy tên/review,
    loại review rỗng và trùng trong lần crawl.
 3. Backend tìm/tạo Product, suy luận category từ tên/URL.
 4. Review mới hoặc thiếu sentiment được gửi sang AI. Review đã hoàn thiện dữ
@@ -393,15 +421,20 @@ bị bỏ qua theo cơ chế này; cần đọc detail/log để xử lý.
 
 | Bảng | Vai trò |
 | --- | --- |
-| `products` | Tiki ID, URL, tên, category, trạng thái và thời điểm crawl |
+| `products` | Chủ sở hữu, nguồn Lazada/file, URL, tên, category và thời điểm cập nhật |
 | `reviews` | Nội dung gốc, rating, ngày review và trạng thái phân tích |
 | `review_analysis` | Sentiment/confidence final, `model_version`, `analysis_method` |
 | `issue_analysis` | Nhóm issue và keyword khớp |
 | `risk_detection` | `risk_flag`, mức rủi ro và keyword |
 | `analysis_history` | Snapshot số lượng/tỷ lệ sentiment và summary issue/risk theo lần phân tích |
+| `review_collections` | Audit lần nhập CSV/Excel (và client API cũ), thống kê chống trùng và liên kết snapshot |
+| `users`, `auth_sessions` | Tài khoản và phiên đăng nhập có thể thu hồi |
+| `password_reset_tokens`, `user_api_tokens` | Token băm để reset mật khẩu và gọi API cá nhân |
+| `auth_throttles` | Bộ đếm giới hạn thử đăng nhập/đăng ký/khôi phục |
 
-Product có khóa duy nhất theo `(platform, platform_product_id)`; Review theo
-`(platform, platform_review_id)`. Đổi model/rule không tự phân tích lại dữ liệu cũ.
+Product có khóa duy nhất theo `(owner_id, platform, platform_product_id)`; Review
+theo `(product_id, platform, platform_review_id)`. Sản phẩm, review và lịch sử
+được giới hạn theo tài khoản đăng nhập. Đổi model/rule không tự phân tích lại dữ liệu cũ.
 Tỷ lệ sentiment được tổng hợp trên review đã có analysis; có thể lệch nhẹ tổng
 100% do làm tròn.
 
@@ -409,9 +442,10 @@ Tỷ lệ sentiment được tổng hợp trên review đã có analysis; có th
 kết quả của từng review ở thời điểm cũ. Các script rebuild không tự tái tạo
 snapshot lịch sử. Chi tiết model/schema: [database/models.py](database/models.py).
 
-Backend dùng SQLAlchemy `create_all()` khi khởi động: tạo bảng còn thiếu và giữ
-nguyên dữ liệu hiện có. Cơ chế này không tự migrate cột của bảng đã tồn tại;
-đổi cấu trúc schema cần migration phù hợp.
+Backend tạo bảng còn thiếu và chạy migration xác thực tự động khi khởi động,
+trong một transaction có advisory lock. Migration thêm chủ sở hữu và cập nhật
+unique sản phẩm/review; giữ nguyên dữ liệu. Xem [quyền dữ liệu cũ](AUTHENTICATION.md#dữ-liệu-trước-khi-có-đăng-nhập).
+Những thay đổi schema khác vẫn cần migration phù hợp.
 
 Dữ liệu PostgreSQL nằm trong named volume `postgres_data` của Compose project,
 không nằm trong image backend. `docker compose down` giữ volume; `down -v` xóa
@@ -427,11 +461,19 @@ Swagger/OpenAPI khi service chạy:
 
 ### Backend — cổng 8000
 
+Các API `/products/*` và `/collections/*` cần cookie đăng nhập hoặc Bearer cá nhân.
+Thiếu xác thực trả 401; sản phẩm của tài khoản khác trả 404. Luồng đăng ký,
+đăng nhập và khôi phục mật khẩu: [API Authentication](AUTHENTICATION.md#api).
+
 | Method | Endpoint | Ý nghĩa |
 | --- | --- | --- |
 | GET | `/` | Process backend đang chạy |
 | GET | `/products` hoặc `/products/` | Danh sách sản phẩm đã lưu |
-| POST | `/products/analyze` | Body `{"url":"URL_TIKI"}`; crawl, phân tích, ghi database |
+| GET | `/products/collection-config` | Nhánh thu thập URL: crawler dùng cookie |
+| POST | `/products/analyze` | Body `{"url":"URL_LAZADA"}`; crawl bằng cookie, phân tích, ghi database |
+| GET | `/collections/status` | Kiểm tra khóa nhập dữ liệu và giới hạn upload |
+| POST | `/collections/reviews` | Nhận JSON cho client API cũ; cần cookie / Bearer cá nhân |
+| POST | `/collections/import` | Import bytes CSV/Excel với tên sản phẩm; cần cookie / Bearer cá nhân; xem [hợp đồng API](HYBRID_COLLECTION.md#api) |
 | GET | `/products/{product_id}/analysis` | Dashboard; có query `history_id` để chọn snapshot |
 | GET | `/products/{product_id}/histories` | Danh sách snapshot của sản phẩm |
 | GET | `/products/{product_id}/reviews` | Query `page=1`, `page_size=10`, `rating` tùy chọn |
@@ -457,12 +499,36 @@ Chỉ khi đi qua backend client thì `final` mới được quyết định l�
 | Method | Endpoint | Ý nghĩa |
 | --- | --- | --- |
 | GET | `/` | Trạng thái process |
-| POST | `/crawl` | Body `{"url":"URL_TIKI"}`; trả product ID, spid, tên và reviews |
+| POST | `/crawl` | Body `{"url":"URL_LAZADA"}`; trả platform=lazada, product ID, sku_id, tên và reviews |
 
 Crawler có retry, sleep giữa trang, loại duplicate/rỗng và có thể trả
-`crawl_status = PARTIAL`, `crawl_error`, `stopped_at_page`. `FULL` cũng không
-đảm bảo đã lấy hết review vượt giới hạn 20 trang. Backend gọi crawler với timeout
-120 giây; mỗi lần gọi AI có timeout 60 giây.
+`crawl_status = PARTIAL`, `crawl_error`, `stopped_at_page`, `missing_pages`.
+`FULL` chỉ có nghĩa đã duyệt hết trang endpoint báo về, không bao gồm review
+bị Lazada ẩn hoặc review không có bình luận. Không có hạn mức trang/review hoặc
+timeout tổng 90/120 giây. Backend chờ crawler với read timeout `None`; mỗi request
+Lazada tối đa 15 giây, retry tối đa 2 lần khi lỗi kết nối/5xx. Dừng khi 3 trang
+lỗi liên tiếp để tránh gọi vô hạn vào nguồn đang chặn. Mỗi lần gọi AI vẫn có
+timeout 60 giây riêng cho review đó. Giữ tab phân tích mở khi xử lý nhiều review.
+
+Chi tiết URL, ánh xạ dữ liệu và giới hạn truy cập nằm trong
+[README crawler](crawler-service/README.md). `sku_id` được ghi nhận từ URL;
+đánh giá hiện được lấy chung theo `itemId`, không lọc riêng từng SKU.
+Ngày review tiếng Việt được chuẩn hóa sang ISO trước khi backend lưu database.
+Backend lưu `platform=lazada`; các bản ghi `platform=tiki` có sẵn giữ nguyên và
+không bị trùng ID với dữ liệu mới. Không cần đổi schema hay xóa volume database.
+
+Nếu Lazada trả trang HTML/CAPTCHA thay JSON, crawler thử đọc dữ liệu review có
+sẵn trên trang `www.lazada.vn/product-reviews/?item_id=...`. Nguồn này không
+đảm bảo đầy đủ review nên kết quả là `PARTIAL`; dashboard hiển thị cảnh báo cho
+lần phân tích vừa hoàn tất. `crawl_source` cho biết nguồn đã dùng. Chỉ khi API
+và trang HTML đều không đọc được dữ liệu mới trả HTTP 502 kèm mô tả, không coi
+việc bị chặn là sản phẩm không có review.
+
+Compose mặc định dùng hàm `crawl_lazada_reviews` trong
+`crawler-service/cookie_crawler.py`. Lấy 1–5 sao, page size 5, không giới hạn
+trang, đọc LAZADA_COOKIE từ `.env` mỗi lần bắt đầu. HTML xác minh/403/429 hoặc
+trang lặp làm dừng lượt crawl; giữ review đã lấy và báo PARTIAL. Xem
+[hướng dẫn cookie và file](HYBRID_COLLECTION.md). Crawler chạy bằng curl_cffi, không cần Chromium hoặc cấu hình seccomp riêng.
 
 ## 9. Biến môi trường và cấu hình mạng
 
@@ -476,6 +542,10 @@ Crawler có retry, sleep giữa trang, loại duplicate/rỗng và có thể tr�
 | `CRAWLER_SERVICE_URL` | Backend gọi `/crawl`; trong Compose là `http://crawler-service:8002` |
 | `BACKEND_URL` | Có trong `.env.example`, chưa được frontend hiện tại dùng để chọn URL API |
 | `APP_ENV` | Có trong `.env.example`, chưa tự chuyển CORS/URL hay thay cấu hình deployment |
+| `AUTH_FRONTEND_URL` | Origin website và gốc link reset; mặc định `http://localhost:5173` |
+| `AUTH_COOKIE_SECURE` | `false` cho local HTTP, `true` khi triển khai HTTPS |
+| `SMTP_HOST` / `SMTP_PORT` | Mailpit `mailpit:1025`, UI email thử tại `localhost:8025` |
+| `LAZADA_COOKIE` | Cookie cục bộ, đọc lại từ .env khi bắt đầu crawl |
 
 File `.env.example` có sẵn cấu hình local cho Compose. Nếu đổi username,
 password hoặc database, sửa đồng bộ các biến PostgreSQL và `DATABASE_URL`.
@@ -486,15 +556,12 @@ Trong Docker, dùng `postgres:5432`; backend native trên host dùng `127.0.0.1:
 `load_dotenv()`. Biến đã có trong process được ưu tiên. Với Docker, dùng `.env`
 gốc qua Compose; với native, export đúng giá trị như mục 10 để tránh hostname Docker.
 
-Frontend hiện hard-code `http://127.0.0.1:8000` tại:
-
-- `frontend/src/services/api.ts`.
-- `frontend/src/pages/Analyze.tsx`.
-
-Backend CORS tại `backend/app/main.py` chỉ cho `http://localhost:5173` và
-`http://127.0.0.1:5173`. Đổi domain/cổng frontend phải cập nhật CORS; đổi địa chỉ
-backend phải cập nhật cả hai chỗ gọi API. Chỉ sửa `BACKEND_URL` trong `.env`
-**không đổi** URL đang dùng trong trình duyệt.
+Frontend gọi API qua `frontend/src/services/http.ts`, dùng cùng hostname với
+website và cổng 8000. Có thể đặt VITE_API_URL khi chạy Vite/build. `BACKEND_URL`
+trong `.env` không tự đổi URL frontend. Cookie được gửi bằng credentials include;
+không trộn localhost và 127.0.0.1 giữa UI/API. Backend cho phép origin cấu hình
+AUTH_FRONTEND_URL và hai origin local cổng 5173. Khi đổi domain phải cập nhật
+AUTH_FRONTEND_URL, API URL và HTTPS/Secure cookie đồng bộ.
 
 ## 10. Chạy từng service để phát triển
 
@@ -568,16 +635,30 @@ cổng hoặc cập nhật CORS cho cổng mới.
 ## 11. Kiểm thử
 
 Chạy sau `docker compose up -d` và đợi các service sẵn sàng. Các lệnh dưới
-kiểm tra nhanh hệ thống đang chạy; bản source hiện tại không kèm bộ unit test.
+kiểm tra nhanh hệ thống đang chạy. Bộ kiểm thử offline cho chuyển đổi Lazada được hướng dẫn bên dưới.
+
+### Kiểm thử offline crawler và backend
+
+Sau khi build lại image theo source mới:
+
+```bash
+docker compose run --rm --no-deps crawler-service python -m unittest discover -s tests -v
+docker compose run --rm --no-deps -e DATABASE_URL=sqlite:///:memory: backend python -m unittest discover -s tests -v
+```
+
+Các test dùng response Lazada mô phỏng và SQLite tạm; không gọi Lazada/AI thật
+và không sử dụng database sản phẩm. Chúng kiểm tra URL, phân trang, chống trùng,
+review rỗng, ngày tiếng Việt, lỗi/chặn truy cập, timeout và tách dữ liệu theo sàn.
 
 ### Backend
 
 ```bash
 curl -fsS http://127.0.0.1:8000/
-curl -fsS http://127.0.0.1:8000/products
+curl -fsS http://127.0.0.1:8000/products -H "Authorization: Bearer $PERSONAL_API_TOKEN"
 ```
 
-Hai API phải trả HTTP 200. Với database mới, danh sách sản phẩm rỗng là bình thường.
+API gốc trả 200; `/products` cần PERSONAL_API_TOKEN tạo qua Swagger (xem AUTHENTICATION.md)
+và trả danh sách riêng của tài khoản. Thiếu/sai khóa trả 401.
 
 ### AI
 
@@ -601,16 +682,16 @@ docker compose run --rm --no-deps frontend npm run build
 Lệnh kiểm tra TypeScript và bundle Vite. Nếu chạy native: `cd frontend`,
 `npm ci`, `npm run build`.
 
-### Crawler thật — tùy chọn, cần Internet/Tiki
+### Crawler thật — tùy chọn, cần Internet/Lazada
 
 ```bash
 curl -fsS http://127.0.0.1:8002/crawl \
   -H 'Content-Type: application/json' \
-  -d '{"url":"URL_SAN_PHAM_TIKI_CON_HIEU_LUC"}'
+  -d '{"url":"URL_SAN_PHAM_LAZADA_CON_HIEU_LUC"}'
 ```
 
-Thay `URL_SAN_PHAM_TIKI_CON_HIEU_LUC` bằng URL thật trước khi chạy. Lệnh này
-gọi Tiki thật; kết quả phụ thuộc tình trạng sản phẩm và kết nối tới Tiki.
+Thay `URL_SAN_PHAM_LAZADA_CON_HIEU_LUC` bằng URL thật trước khi chạy. Lệnh này
+gọi Lazada thật; kết quả phụ thuộc tình trạng sản phẩm và kết nối tới Lazada.
 
 ## 12. Vận hành, cập nhật và phân tích lại
 
@@ -650,7 +731,7 @@ Các script sau **ghi lại dữ liệu phân tích**. Backup database trước 
 không chạy song song với một đợt phân tích sản phẩm khác.
 
 ```bash
-# Gọi model v3 + decision layer cho các review đã lưu, không crawl Tiki
+# Gọi model v3 + decision layer cho các review đã lưu, không crawl Lazada
 docker compose exec -T backend python scripts/rebuild_sentiment_analysis.py
 
 # Dùng sentiment đã lưu để chạy lại issue/risk
@@ -740,16 +821,15 @@ sẽ không đủ. Không cần mở AI/crawler/database ra ngoài để trình 
 Cấu hình hiện tại dùng Vite dev server và URL/CORS cố định cho local; chưa phải
 một bộ cấu hình production hoàn chỉnh. Khi triển khai public cần thực hiện:
 
-1. Chọn địa chỉ API mà trình duyệt của người dùng truy cập được; sửa cả hai chỗ
-   gọi API nêu ở mục 9 hoặc bổ sung cơ chế cấu hình phù hợp.
-2. Thêm origin frontend thực tế vào CORS backend.
+1. Chọn địa chỉ API mà trình duyệt người dùng truy cập được; cấu hình tập trung
+   tại `frontend/src/services/http.ts` hoặc VITE_API_URL khi build.
+2. Cấu hình AUTH_FRONTEND_URL theo origin frontend thực tế để CORS và link reset đúng.
 3. Build frontend bằng `npm run build`; phục vụ `frontend/dist` bằng web server
    có SPA fallback về `index.html`, thay cho Vite dev server.
 4. Cấu hình reverse proxy, HTTPS và timeout đủ cho request phân tích đồng bộ.
    Trang HTTPS phải gọi API HTTPS, tránh mixed content.
 5. Giới hạn public ports bằng cấu hình bind/firewall; Compose hiện publish cả
-   PostgreSQL, AI và crawler trên host. Hệ thống chưa có xác thực để bảo vệ API
-   phân tích nếu đưa trực tiếp lên Internet.
+   PostgreSQL, AI và crawler trên host. API sản phẩm/nhập dữ liệu yêu cầu xác thực tài khoản; xem [cấu hình HTTPS và SMTP](AUTHENTICATION.md).
 6. Thiết lập backup, tài nguyên và theo dõi log trước khi sử dụng lâu dài.
 
 README không giả định việc đổi `APP_ENV=production` sẽ tự thực hiện các bước này.
@@ -776,9 +856,9 @@ docker compose logs --tail 100 backend ai-service crawler-service postgres
 | Kết nối DB sai password sau sửa `.env` | Volume cũ vẫn giữ user/password cũ; cập nhật thông tin kết nối hoặc đổi password DB có kiểm soát |
 | `localhost` kết nối thất bại trong backend container | `localhost` là chính container; dùng `postgres`, `ai-service`, `crawler-service` trong Compose |
 | Trình duyệt báo CORS/Failed to fetch | Kiểm tra backend có chạy, origin được cho phép và URL API đang hard-code ở frontend |
-| `/products/analyze` trả 500 | Đọc detail/log: kết nối DB, crawler timeout/Tiki, AI validation/runtime; không chỉ dựa vào dòng console Analyze.tsx |
+| `/products/analyze` trả lỗi | `400`: URL sai; `502`: crawler/Lazada lỗi hoặc bị chặn; `504`: crawler timeout; `500`: xem log backend/AI/database và detail |
 | `/predict` trả 422 cho emoji | Bình thường với nội dung rỗng sau clean; API phân tích sản phẩm hiện bỏ qua sentiment của review đó |
-| Crawl không có/thiếu review | Kiểm tra URL, giữ `spid`, giới hạn 20 trang, dữ liệu Tiki, trạng thái PARTIAL và log crawler |
+| Crawl không có/thiếu review | Kiểm tra URL, quyền truy cập nguồn công khai, `missing_pages` và `PARTIAL`; HTML công khai có thể chỉ có 50 review, không phải giới hạn của ứng dụng |
 | Build timeout khi tải package | Kiểm tra mạng/DNS Docker, chạy lại build; tránh nâng dependency ngẫu nhiên |
 | Sửa code mà giao diện/AI không đổi | Build và recreate đúng service; restart hoặc refresh trình duyệt không copy source vào image |
 | `Cannot find module`/`ModuleNotFoundError` khi native | Đúng thư mục, đúng venv và entry point; không chạy backend bằng venv Python 3.14 của dự án khác |
@@ -809,7 +889,7 @@ Không bỏ qua mọi lỗi AI để biến một đợt phân tích lỗi thàn
 - [ ] Kiểm tra database mới được tự tạo bảng sau `docker compose up -d`.
 - [ ] Kiểm tra AI `/health` đúng `_v3`, backend `/products` hoạt động.
 - [ ] Chạy kiểm tra API backend/AI ở mục 11 và build frontend.
-- [ ] Thử một URL Tiki còn hợp lệ và kiểm tra dashboard/history sau khi phân tích.
+- [ ] Thử một URL Lazada còn hợp lệ và kiểm tra dashboard/history sau khi phân tích.
 - [ ] Nếu public domain: hoàn tất URL API, CORS, frontend static/reverse proxy và quản lý truy cập.
 
 Không cần giao `.venv`, `node_modules` hoặc image Docker của máy cá nhân.

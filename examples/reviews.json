@@ -1,0 +1,16 @@
+[
+  {
+    "review_id": "sample-1",
+    "content": "Sản phẩm tốt, giao hàng nhanh",
+    "rating": 5,
+    "customer_name": "Người mua A",
+    "created_at": "2026-10-01"
+  },
+  {
+    "review_id": "sample-2",
+    "content": "Hàng không giống mô tả, đóng gói bị hỏng",
+    "rating": 1,
+    "customer_name": "Người mua B",
+    "created_at": "2026-10-02"
+  }
+]

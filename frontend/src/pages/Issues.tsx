@@ -1,3 +1,4 @@
+import { API_BASE_URL, apiFetch } from "../services/http";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -12,7 +13,7 @@ import {
   Search,
 } from "lucide-react";
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+
 
 type ReviewIssue = {
   id?: number;
@@ -191,7 +192,7 @@ function Issues() {
 
         const pageSize = 100;
 
-        const firstResponse = await fetch(
+        const firstResponse = await apiFetch(
           `${API_BASE_URL}/products/${productId}/reviews?page=1&page_size=${pageSize}`
         );
 
@@ -210,7 +211,7 @@ function Issues() {
           for (let page = 2; page <= totalPages; page += 1) {
             setLoadingProgress(`Đang tải page ${page}/${totalPages}...`);
 
-            const response = await fetch(
+            const response = await apiFetch(
               `${API_BASE_URL}/products/${productId}/reviews?page=${page}&page_size=${pageSize}`
             );
 

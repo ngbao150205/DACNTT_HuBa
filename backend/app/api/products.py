@@ -19,6 +19,7 @@ from database.connection import (
 
 from database.models import (
     Product,
+    User,
     Review,
 )
 
@@ -27,6 +28,8 @@ from typing import Optional
 from app.services.product_service import (
     analyze_product,
 )
+from app.services.crawler_client import CrawlerServiceError
+from app.security.auth import get_current_user
 
 from app.services.product_analysis_service import (
     get_product_analysis,
@@ -41,9 +44,19 @@ from app.services.review_service import (
 router = APIRouter(
     prefix="/products",
     tags=["Products"],
+    dependencies=[Depends(get_current_user)],
 )
 
 logger = logging.getLogger(__name__)
+
+def require_owned_product(db, product_id, owner_id):
+    if not db.query(Product.id).filter(Product.id == product_id, Product.owner_id == owner_id).first():
+        raise HTTPException(404, "Product not found")
+
+
+@router.get("/collection-config")
+def collection_config():
+    return {"provider": "crawler"}
 
 
 # ============================================================
@@ -60,6 +73,7 @@ logger = logging.getLogger(__name__)
 @router.get("/")
 def get_products_api(
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     try:
         review_count_subquery = (
@@ -93,6 +107,7 @@ def get_products_api(
                 review_count_subquery,
                 review_count_subquery.c.product_id == Product.id,
             )
+            .filter(Product.owner_id == user.id)
             .order_by(Product.created_at.desc())
             .all()
         )
@@ -136,7 +151,7 @@ def get_products_api(
 #   POST /products/analyze
 # Body:
 #   {
-#       "url": "https://tiki.vn/..."
+#       "url": "https://www.lazada.vn/products/...-i123-s456.html"
 #   }
 # ============================================================
 
@@ -144,14 +159,20 @@ def get_products_api(
 def analyze_product_endpoint(
     request: AnalyzeProductRequest,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     try:
         result = analyze_product(
             db=db,
             url=request.url,
+            owner_id=user.id,
         )
 
         return result
+
+    except CrawlerServiceError as e:
+        headers = {"Retry-After": e.retry_after} if e.retry_after else None
+        raise HTTPException(status_code=e.status_code, detail=str(e), headers=headers) from e
 
     except ValueError as e:
         raise HTTPException(
@@ -179,7 +200,9 @@ def get_product_analysis_api(
     product_id: int,
     history_id: Optional[int] = None,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
+    require_owned_product(db, product_id, user.id)
     result = get_product_analysis(
         db=db,
         product_id=product_id,
@@ -206,7 +229,9 @@ def get_product_analysis_api(
 def get_product_histories_api(
     product_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
+    require_owned_product(db, product_id, user.id)
     result = get_product_histories(
         db=db,
         product_id=product_id,
@@ -235,7 +260,9 @@ def get_product_reviews_api(
     page_size: int = 10,
     rating: Optional[int] = None,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
+    require_owned_product(db, product_id, user.id)
     result = get_product_reviews(
         db=db,
         product_id=product_id,

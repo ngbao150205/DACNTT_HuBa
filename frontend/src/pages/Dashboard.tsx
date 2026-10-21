@@ -6,6 +6,7 @@ import {
 
 import {
   Link,
+  useLocation,
   useParams,
   useSearchParams,
 } from "react-router-dom";
@@ -87,6 +88,8 @@ function getIssueLabel(issueType: string): string {
 }
 
 function Dashboard() {
+  const location = useLocation();
+  const crawlWarning = (location.state as { crawlWarning?: string } | null)?.crawlWarning;
   const {
     productId: productIdFromParams,
   } = useParams();
@@ -556,6 +559,11 @@ function Dashboard() {
     <div className="
       space-y-8
     ">
+      {crawlWarning && (
+        <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+          {crawlWarning}
+        </p>
+      )}
       <header>
         <p className="
           text-sm

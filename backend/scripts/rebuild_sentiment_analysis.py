@@ -42,7 +42,7 @@ def rebuild_sentiment_analysis(
 
     Script này:
 
-    - Không crawl Tiki
+    - Không crawl lại sản phẩm
     - Có gọi Sentiment AI
     - Có truyền rating sang ai-service
     - Có cập nhật ReviewAnalysis

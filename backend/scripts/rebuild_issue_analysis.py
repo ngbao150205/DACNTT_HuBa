@@ -42,7 +42,7 @@ def rebuild_issue_analysis(
 
     Script này:
 
-    - Không crawl Tiki
+    - Không crawl lại sản phẩm
     - Không gọi Sentiment AI
     - Không thay đổi ReviewAnalysis
     - Không thay đổi RiskDetection

@@ -18,6 +18,68 @@ from sqlalchemy.orm import relationship
 from .base import Base
 
 
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    email = Column(String(320), nullable=False, unique=True, index=True)
+    full_name = Column(String(100), nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class UserApiToken(Base):
+    __tablename__ = "user_api_tokens"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class AuthThrottle(Base):
+    __tablename__ = "auth_throttles"
+    key = Column(String(64), primary_key=True)
+    window_start = Column(DateTime, nullable=False)
+    attempts = Column(Integer, nullable=False)
+
+
+class ReviewCollection(Base):
+    """Audit each authenticated import without altering existing review tables."""
+
+    __tablename__ = "review_collections"
+
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    analysis_history_id = Column(Integer, ForeignKey("analysis_history.id"), nullable=False)
+    source = Column(String(30), nullable=False)
+    received_count = Column(Integer, nullable=False)
+    accepted_count = Column(Integer, nullable=False)
+    duplicate_count = Column(Integer, nullable=False)
+    blank_count = Column(Integer, nullable=False)
+    generated_id_count = Column(Integer, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 # ============================================================
 # PRODUCT
 # ============================================================
@@ -25,6 +87,8 @@ from .base import Base
 class Product(Base):
 
     __tablename__ = "products"
+    # NULL keeps pre-authentication data intact until assigned by a local admin.
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     # ========================================================
     # PRIMARY KEY
@@ -43,12 +107,12 @@ class Product(Base):
     platform = Column(
         String(50),
         nullable=False,
-        default="tiki",
+        default="lazada",
         index=True,
     )
 
     # ========================================================
-    # TIKI PRODUCT ID
+    # PLATFORM PRODUCT ID
     # ========================================================
 
     platform_product_id = Column(
@@ -187,11 +251,12 @@ class Product(Base):
 
     __table_args__ = (
 
-        # Một sản phẩm Tiki chỉ xuất hiện một lần
+        # Một sản phẩm chỉ xuất hiện một lần trên mỗi sàn
         UniqueConstraint(
+            "owner_id",
             "platform",
             "platform_product_id",
-            name="uq_product_platform_product",
+            name="uq_product_owner_platform_product",
         ),
 
         # Tìm sản phẩm theo platform + product ID
@@ -243,12 +308,12 @@ class Review(Base):
     platform = Column(
         String(50),
         nullable=False,
-        default="tiki",
+        default="lazada",
         index=True,
     )
 
     # ========================================================
-    # TIKI REVIEW ID
+    # PLATFORM REVIEW ID
     # ========================================================
 
     platform_review_id = Column(
@@ -361,11 +426,12 @@ class Review(Base):
 
     __table_args__ = (
 
-        # Một review Tiki chỉ xuất hiện một lần
+        # Một review chỉ xuất hiện một lần trên mỗi sàn
         UniqueConstraint(
+            "product_id",
             "platform",
             "platform_review_id",
-            name="uq_review_platform_review",
+            name="uq_review_product_platform_review",
         ),
 
         # Tối ưu tìm review theo product

@@ -1,5 +1,0 @@
-{
-  "checkpoints": ["fold1.keras", "fold2.keras", "fold3.keras", "fold4.keras", "fold5.keras"],
-  "padding": "post",
-  "truncating": "post"
-}

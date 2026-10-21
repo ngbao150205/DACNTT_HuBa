@@ -12,7 +12,14 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
+RUN groupadd --gid 10001 crawler \
+    && useradd --uid 10001 --gid crawler --create-home crawler \
+    && mkdir -p /var/lib/crawler \
+    && chown crawler:crawler /var/lib/crawler
+
 COPY crawler-service /app/crawler-service
+
+USER crawler
 
 EXPOSE 8002
 

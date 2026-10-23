@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from collections import Counter
 import json
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from database.models import (
     Product,
@@ -17,6 +17,7 @@ from app.services.issue_service import save_issue_analysis
 from app.services.risk_service import save_risk_detection
 from app.services.category_service import detect_product_category
 from app.services.review_identity import fingerprint, is_fallback, ReviewIdentityConflict
+from app.services.rating_summary import summarize_ratings
 
 
 # ============================================================
@@ -557,6 +558,7 @@ def build_product_analysis(
 
     reviews = (
         db.query(Review)
+        .options(selectinload(Review.analysis), selectinload(Review.issue_analysis), selectinload(Review.risk_detection))
         .filter(
             Review.product_id == product.id
         )
@@ -611,14 +613,8 @@ def build_product_analysis(
 
             risk = review.risk_detection
 
-            if (
-                risk.risk_flag
-                and risk.risk_level
-            ):
-
-                risk_counter[
-                    risk.risk_level
-                ] += 1
+            if risk.risk_flag:
+                risk_counter[risk.risk_level or "UNKNOWN"] += 1
 
     # ========================================================
     # SENTIMENT COUNTS
@@ -697,6 +693,7 @@ def build_product_analysis(
         "neutral_rate": neutral_rate,
         "issue_summary": dict(issue_counter),
         "risk_summary": dict(risk_counter),
+        "rating_summary": summarize_ratings(reviews),
     }
 
 
@@ -754,6 +751,8 @@ def save_analysis_history(
             analysis_result["risk_summary"],
             ensure_ascii=False,
         ),
+        rating_summary=json.dumps(analysis_result["rating_summary"], ensure_ascii=False)
+        if analysis_result.get("rating_summary") is not None else None,
         analyzed_at=datetime.utcnow(),
     )
 

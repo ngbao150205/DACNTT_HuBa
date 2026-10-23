@@ -831,6 +831,9 @@ class AnalysisHistory(Base):
         nullable=True,
     )
 
+    # Null on legacy histories: current reviews cannot reconstruct old ratings.
+    rating_summary = Column(Text, nullable=True)
+
     # ========================================================
     # TIMESTAMP
     # ========================================================

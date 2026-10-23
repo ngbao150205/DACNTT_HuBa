@@ -101,6 +101,13 @@ export interface ProductReviewsResponse {
  * thông qua backend.
  */
 
+export interface RatingSummary {
+  counts: Record<string, number>;
+  rated_reviews: number;
+  unrated_reviews: number;
+  average_rating: number | null;
+}
+
 export interface AnalysisHistoryItem {
   id: number;
   product_id: number;
@@ -114,6 +121,7 @@ export interface AnalysisHistoryItem {
   neutral_rate: number;
   issue_summary: Record<string, number>;
   risk_summary: Record<string, number>;
+  rating_summary?: RatingSummary | null;
   analyzed_at: string;
 }
 
@@ -146,6 +154,8 @@ export interface ProductAnalysisApiResponse {
     neutral_rate: number;
     issue_summary: Record<string, number>;
     risk_summary: Record<string, number>;
+    rating_summary?: RatingSummary | null;
+    rating_summary_source?: "snapshot" | "current" | "unavailable";
     history_id?: number | null;
     analyzed_at?: string | null;
   };

@@ -16,7 +16,7 @@ function StatCard({
       rounded-2xl
       border
       border-gray-100
-      p-6
+      p-4 sm:p-6
       shadow-sm
     ">
 
@@ -28,7 +28,7 @@ function StatCard({
       </p>
 
       <h2 className="
-        text-3xl
+        text-2xl sm:text-3xl
         font-bold
         text-slate-800
         mt-2
@@ -39,7 +39,7 @@ function StatCard({
       {description && (
         <p className="
           text-sm
-          text-gray-400
+          text-gray-500
           mt-2
         ">
           {description}

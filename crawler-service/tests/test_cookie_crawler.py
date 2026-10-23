@@ -1,11 +1,17 @@
 """Supplied cookie crawler: synthetic HTTP only, never calls Lazada."""
 import os
+import json
+import re
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
+from urllib.parse import parse_qs, urlparse
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 import cookie_crawler as crawler
+from curl_cffi.requests.impersonate import DEFAULT_CHROME
 from lazada_common import CrawlUpstreamError
 from main import CrawlRequest, crawl
 
@@ -22,18 +28,22 @@ def item(id="r1", star=5, content="Sản phẩm tốt"):
 
 class CookieCrawlerTests(unittest.TestCase):
     def setUp(self):
-        self.get = patch.object(crawler.curl_requests,"get").start()
+        session_type = crawler.curl_requests.Session
+        self.sessions = patch.object(crawler.curl_requests, "Session", wraps=session_type).start()
+        self.get = patch.object(session_type, "get").start()
         patch.object(crawler.time,"sleep").start()
     def tearDown(self): patch.stopall()
 
     def test_all_five_stars_cookie_and_csv_output(self):
         self.get.side_effect=lambda *args,**kwargs: response([item(str(kwargs['params']['filter']),kwargs['params']['filter'])])
         with tempfile.TemporaryDirectory() as directory:
-            frame=crawler.crawl_lazada_reviews(URL,directory,cookie="synthetic-cookie")
+            frame=crawler.crawl_lazada_reviews(URL,directory,cookie="session=synthetic-cookie")
             self.assertTrue((Path(directory)/"123_1.csv").exists())
         self.assertEqual(sorted(frame.rating.tolist()),[1,2,3,4,5])
         self.assertEqual(frame.attrs['crawl']['crawl_status'],'FULL')
-        self.assertEqual(self.get.call_args.kwargs['headers']['Cookie'],'synthetic-cookie')
+        self.assertEqual(self.sessions.call_args.kwargs['cookies'].get('session'),'synthetic-cookie')
+        self.assertEqual(self.sessions.call_count, 1)
+        self.assertNotIn('Cookie', self.get.call_args.kwargs['headers'])
         self.assertFalse(self.get.call_args.kwargs['allow_redirects'])
         self.assertEqual(frame.iloc[0]['created_at'],'2024-08-13T00:00:00')
         self.assertNotIn('cookie',str(frame.attrs).lower())
@@ -89,6 +99,19 @@ class CookieCrawlerTests(unittest.TestCase):
                 path.write_text('LAZADA_COOKIE=\n')
                 self.assertEqual(crawler.crawler_settings()['cookie'],'')
 
+    def test_blank_user_agent_uses_library_default_and_custom_value_is_kept(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'.env'
+            with patch.dict(os.environ,{'LAZADA_ENV_FILE':str(path)}):
+                for value in ['', '   ']:
+                    path.write_text(f"LAZADA_COOKIE=test=value\nLAZADA_USER_AGENT='{value}'\n")
+                    self.assertIsNone(crawler.crawler_settings()['user_agent'])
+                path.write_text("LAZADA_COOKIE=test=value\nLAZADA_USER_AGENT='test-browser-user-agent'\n")
+                self.assertEqual(crawler.crawler_settings()['user_agent'], 'test-browser-user-agent')
+                self.get.return_value=response([])
+                crawler.crawl_lazada_reviews(123,'',stars=(1,),**crawler.crawler_settings())
+                self.assertEqual(self.get.call_args.kwargs['headers']['User-Agent'],'test-browser-user-agent')
+
     def test_missing_cookie_fails_before_network_and_route_returns_503(self):
         with patch.object(crawler,'crawler_settings',return_value={'cookie':'','user_agent':'test'}):
             from fastapi import HTTPException
@@ -102,5 +125,69 @@ class CookieCrawlerTests(unittest.TestCase):
         for pages in [True,0,-1]:
             with self.assertRaises(ValueError): crawler.crawl_lazada_reviews(123,'',max_pages=pages)
         self.get.assert_not_called()
+
+    def test_invalid_cookie_value_is_rejected_without_network_or_secret_in_error(self):
+        for value in ['Cookie: private=value', 'private=value\nother=secret', 'curl -H private', 'bad name=secret']:
+            with self.subTest(value_type=value.split('=',1)[0]), self.assertRaises(ValueError) as caught:
+                crawler.crawl_lazada_reviews(123, '', cookie=value)
+            self.assertNotIn('secret', str(caught.exception))
+            self.assertNotIn('private', str(caught.exception))
+        self.get.assert_not_called()
+
+    def test_cookie_values_preserve_equals_and_are_scoped_to_lazada(self):
+        jar = crawler.cookie_jar_from_header('token=abc==; other=two%20words;')
+        self.assertEqual(jar.get('token'), 'abc==')
+        self.assertEqual(jar.get('other'), 'two%20words')
+        self.assertTrue(all(cookie.domain == '.lazada.vn' and cookie.secure for cookie in jar.jar))
+
+
+class SessionCookiePersistenceTests(unittest.TestCase):
+    def test_page_two_receives_cookie_refreshed_by_page_one(self):
+        received = []
+        user_agents = []
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                page = int(parse_qs(urlparse(self.path).query)['pageNo'][0])
+                received.append(self.headers.get('Cookie'))
+                user_agents.append(self.headers.get('User-Agent'))
+                payload = json.dumps({'model': {'items': [item(str(page), star=1)], 'paging': {'totalPages': 2}}}).encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Set-Cookie', 'sid=renewed; Path=/; HttpOnly')
+                self.send_header('Content-Length', str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+            def log_message(self, *args):
+                pass
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        session_type = crawler.curl_requests.Session
+        original_get = session_type.get
+        sessions = []
+        def session_factory(*, cookies):
+            session = session_type()
+            # Test-only rewrite: no credentials or requests leave localhost.
+            for cookie in cookies.jar:
+                session.cookies.set(cookie.name, cookie.value, domain='127.0.0.1')
+            sessions.append(session)
+            return session
+        def local_get(session, url, **kwargs):
+            self.assertEqual(url, 'https://my.lazada.vn/pdp/review/getReviewList')
+            return original_get(session, f'http://127.0.0.1:{server.server_port}/reviews', **kwargs)
+        try:
+            with patch.object(crawler.curl_requests, 'Session', side_effect=session_factory), \
+                 patch.object(session_type, 'get', local_get), patch.object(crawler.time, 'sleep'):
+                frame = crawler.crawl_lazada_reviews(123, '', stars=(1,), cookie='sid=original')
+            self.assertEqual(len(frame), 2)
+            self.assertEqual(frame.attrs['crawl']['crawl_status'], 'FULL')
+            self.assertEqual(len(sessions), 1)
+            self.assertEqual(received, ['sid=original', 'sid=renewed'])
+            expected_major=re.search(r'chrome(\d+)', DEFAULT_CHROME).group(1)
+            self.assertEqual([re.search(r'Chrome/(\d+)', agent).group(1) for agent in user_agents], [expected_major]*2)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3)
 
 if __name__=='__main__': unittest.main()

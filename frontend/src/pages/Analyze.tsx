@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { SyntheticEvent } from "react";
 import { ArrowRight, Loader2, Link2, FileUp } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { API_BASE_URL, apiFetch } from "../services/http";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -32,6 +32,7 @@ export default function Analyze() {
   const [url, setUrl] = useState(""); const [productName, setProductName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false); const [error, setError] = useState("");
+  const [crawlBlocked, setCrawlBlocked] = useState(false);
   const [importResult, setImportResult] = useState<AnalyzeResponse | null>(null);
 
   function openResult(data: AnalyzeResponse, isImport = false) {
@@ -43,10 +44,10 @@ export default function Analyze() {
     navigate(`/products/${data.product_db_id}/dashboard`, {state: {crawlWarning: isImport
       ? "Kết quả được phân tích từ file đã tải lên và các review đã lưu của sản phẩm này."
       : data.crawl_status === "PARTIAL"
-        ? `Có ${data.crawled_reviews ?? 0} bình luận để phân tích. ${data.crawl_error ?? "Nguồn chưa cung cấp đủ đánh giá."}${data.retry_after_seconds ? ` Thử lại sau ít nhất ${data.retry_after_seconds} giây.` : ""}` : null}});
+        ? `Đã phân tích và lưu kết quả từ ${data.crawled_reviews ?? 0} bình luận thu thập được trong lượt này. Chưa thu thập đủ đánh giá: ${data.crawl_error ?? "Nguồn chưa cung cấp đủ đánh giá."}${data.retry_after_seconds ? ` Thử lại sau ít nhất ${data.retry_after_seconds} giây.` : ""}` : null}});
   }
   async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault(); setError(""); setImportResult(null);
+    event.preventDefault(); setError(""); setImportResult(null); setCrawlBlocked(false);
     if (mode === "url" && !url.trim()) {setError("Vui lòng nhập URL sản phẩm."); return;}
     if (mode === "import") {
       if (!productName.trim()) {setError("Vui lòng nhập tên sản phẩm."); return;}
@@ -63,7 +64,10 @@ export default function Analyze() {
         body: mode === "import" ? file : JSON.stringify({url: url.trim()}),
       });
       const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(typeof data?.detail === "string" ? data.detail : `Phân tích thất bại. HTTP ${response.status}`);
+      if (!response.ok) {
+        setCrawlBlocked(mode === "url" && response.status === 429);
+        throw new Error(typeof data?.detail === "string" ? data.detail : `Phân tích thất bại. HTTP ${response.status}`);
+      }
       if (!data?.product_db_id) throw new Error("Backend không trả về product_db_id.");
       if (mode === "import") setImportResult(data); else openResult(data);
     } catch (err) {setError(err instanceof Error ? err.message : "Không kết nối được hệ thống.");}
@@ -92,7 +96,11 @@ export default function Analyze() {
             <p className="mt-2 text-sm text-slate-500">Cần cột <code>content</code> hoặc <strong>Nội dung / Bình luận</strong>. Số sao, tên khách hàng và ngày là tùy chọn. Excel đọc sheet đầu tiên. Tối đa 5 MiB và 10.000 dòng mỗi file.</p>
             <button type="button" onClick={downloadExample} className="mt-2 text-sm font-medium text-blue-700 hover:underline">Tải mẫu CSV</button></div>
         </>}
-        {error && <div role="alert" className="whitespace-pre-wrap break-words rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>}
+        {error && <div role="alert" className="whitespace-pre-wrap break-words rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <p>{error}</p>
+          {crawlBlocked && <><p className="mt-2">Nguồn chưa cung cấp thêm đánh giá. Kết quả đã phân tích trước đó vẫn được giữ trong lịch sử. Kiểm tra lại phiên Lazada và cookie của request đánh giá thành công trước khi thử lại.</p>
+            <Link to="/history" className="mt-2 inline-block font-bold underline">Xem kết quả đã lưu →</Link></>}
+        </div>}
         <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-4 font-bold text-white hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60">
           {loading ? <><Loader2 className="h-5 w-5 animate-spin" />Đang phân tích...</> : <>{mode === "import" ? "Tải file và phân tích" : "Phân tích sản phẩm"}<ArrowRight className="h-5 w-5" /></>}</button>
         {loading && <p role="status" className="text-sm text-slate-500">{mode === "import" ? "Đang đọc file, loại trùng và phân tích đánh giá." : "Đang thu thập đánh giá và phân tích."} Tác vụ có thể mất nhiều phút. Vui lòng giữ trang này mở.</p>}

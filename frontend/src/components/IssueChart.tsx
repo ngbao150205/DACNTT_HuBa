@@ -52,7 +52,7 @@ function IssueChart({
   );
 
   return (
-    <div
+    <section aria-labelledby="issue-chart-title"
       className="
         rounded-2xl
         border
@@ -63,6 +63,7 @@ function IssueChart({
       "
     >
       <h2
+        id="issue-chart-title"
         className="
           mb-5
           text-lg
@@ -160,6 +161,7 @@ function IssueChart({
 
               <Bar
                 dataKey="value"
+                isAnimationActive={false}
                 fill="#2563eb"
                 radius={[
                   8,
@@ -173,7 +175,7 @@ function IssueChart({
           </ResponsiveContainer>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

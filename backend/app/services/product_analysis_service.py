@@ -2,7 +2,9 @@ import json
 from collections import Counter
 from typing import Optional, List, Dict, Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
+
+from app.services.rating_summary import summarize_ratings
 
 from database.models import (
     Product,
@@ -30,12 +32,20 @@ def get_product_histories(
     histories = (
         db.query(AnalysisHistory)
         .filter(AnalysisHistory.product_id == product_id)
-        .order_by(AnalysisHistory.analyzed_at.desc())
+        .order_by(AnalysisHistory.analyzed_at.desc(), AnalysisHistory.id.desc())
         .all()
     )
 
     result = []
     for h in histories:
+        rating_data = h.rating_summary
+        if isinstance(rating_data, str):
+            try:
+                rating_data = json.loads(rating_data)
+            except (ValueError, TypeError):
+                rating_data = None
+        if not isinstance(rating_data, dict):
+            rating_data = None
         issue_data = h.issue_summary
         if isinstance(issue_data, str):
             try:
@@ -67,6 +77,7 @@ def get_product_histories(
             "neutral_rate": h.neutral_rate,
             "issue_summary": issue_data,
             "risk_summary": risk_data,
+            "rating_summary": rating_data,
             "analyzed_at": h.analyzed_at.isoformat() if h.analyzed_at else None,
         })
 
@@ -119,6 +130,7 @@ def get_product_analysis(
 
     reviews = (
         db.query(Review)
+        .options(selectinload(Review.analysis), selectinload(Review.issue_analysis), selectinload(Review.risk_detection))
         .filter(
             Review.product_id == product.id
         )
@@ -180,12 +192,7 @@ def get_product_analysis(
             risk = review.risk_detection
 
             if risk.risk_flag:
-
-                if risk.risk_level:
-
-                    risk_counter[
-                        risk.risk_level
-                    ] += 1
+                risk_counter[risk.risk_level or "UNKNOWN"] += 1
 
     # ========================================================
     # 5. SENTIMENT COUNTS
@@ -288,6 +295,8 @@ def get_product_analysis(
             "risk_summary": selected_history["risk_summary"],
             "history_id": selected_history["id"],
             "analyzed_at": selected_history["analyzed_at"],
+            "rating_summary": selected_history["rating_summary"],
+            "rating_summary_source": "snapshot" if selected_history["rating_summary"] is not None else "unavailable",
         }
     else:
         analysis_data = {
@@ -303,7 +312,15 @@ def get_product_analysis(
             "risk_summary": dict(risk_counter),
             "history_id": None,
             "analyzed_at": None,
+            "rating_summary": summarize_ratings(reviews),
+            "rating_summary_source": "current",
         }
+
+    # Legacy runs lack rating snapshots. Only the latest run may explicitly
+    # display current ratings; never pass these off as an older run's data.
+    if selected_history and selected_history["id"] == all_histories[0]["id"] and analysis_data["rating_summary"] is None:
+        analysis_data["rating_summary"] = summarize_ratings(reviews)
+        analysis_data["rating_summary_source"] = "current"
 
     latest_history = all_histories[0] if len(all_histories) > 0 else None
 

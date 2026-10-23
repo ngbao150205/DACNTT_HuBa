@@ -40,7 +40,7 @@ function Sidebar() {
         left-0
         top-0
         z-40
-        flex
+        hidden lg:flex
         w-72
         flex-col
         overflow-hidden

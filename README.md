@@ -14,8 +14,9 @@ Cài Git, mở Docker Desktop/Engine, rồi chạy:
 git clone --branch dev https://github.com/ngbao150205/DACNTT_HuBa.git DuanCNTT
 cd DuanCNTT
 
-# 2. Tạo .env từ cấu hình mẫu
+# 2. Tạo .env, rồi mở file và điền TINYFISH_API_KEY nếu dùng phân tích URL
 cp .env.example .env
+# Lấy khóa tại https://agent.tinyfish.ai/api-keys (giữ khóa thật trong .env)
 
 # 3. Khởi chạy toàn bộ hệ thống
 docker compose up -d
@@ -25,27 +26,31 @@ Mở **http://localhost:5173** sau khi các service sẵn sàng. Lần đầu Do
 build image, PostgreSQL tạo database và backend tự tạo các bảng còn thiếu.
 Không cần chạy lệnh build hay tạo bảng riêng. Model v3 đã đi kèm source.
 
-`.env.example` có sẵn cấu hình chạy local; có thể sửa thông tin kết nối trong
-`.env` nếu cần. Trên PowerShell, thay lệnh copy bằng `Copy-Item .env.example .env`.
+`.env.example` có sẵn cấu hình chạy local. Nhánh URL cần khóa
+[TinyFish Agent API](https://agent.tinyfish.ai/api-keys) trong `TINYFISH_API_KEY`;
+nhánh tải CSV/Excel không cần khóa. Không cần Cookie hoặc User-Agent Lazada.
+Có thể sửa thông tin kết nối trong `.env` nếu cần. Trên PowerShell, thay lệnh copy bằng `Copy-Item .env.example .env`.
 Lần đầu có thể mất vài phút để tải dependency và nạp 5 fold của model.
 
 Các mục bên dưới là tài liệu tham khảo, không phải các bước bắt buộc bổ sung.
 
 ## Hai cách phân tích dữ liệu
 
-1. **URL sản phẩm:** nhập URL Lazada, hệ thống gọi hàm `crawl_lazada_reviews`
-   do chủ dự án cung cấp. Quản trị viên đặt `LAZADA_COOKIE` trong `.env`;
-   crawler đọc lại cookie mỗi lượt crawl mới, không cần restart khi thay cookie.
+1. **URL sản phẩm:** nhập URL Lazada; crawler gọi TinyFish Agent API, chuẩn
+   hóa review, rồi backend phân tích và lưu. Đặt `TINYFISH_API_KEY` trong `.env`
+   cục bộ; khóa và timeout được đọc lại mỗi lượt crawl mới, không cần restart.
 2. **Tải file CSV / Excel:** nhập tên sản phẩm, chọn `.csv`, `.xlsx` hoặc `.xls`,
-   rồi phân tích. Không cần URL, cookie hay khóa API. File cùng tên sản phẩm
-   được gộp và loại review trùng trong cùng tài khoản.
+   rồi phân tích. Không cần URL, Cookie Lazada hay khóa TinyFish. File cùng tên
+   sản phẩm được gộp và loại review trùng trong cùng tài khoản.
 
-Không cần Chrome Extension hay n8n. URL gọi trực tiếp crawler dùng cookie. Dữ liệu vẫn lưu PostgreSQL và dùng chung
-model v3 / rule backend. Cookie không đảm bảo nguồn luôn cho phép lấy hết review;
-gặp chặn thì dừng và giữ dữ liệu đã lấy, không báo đã thu thập đủ.
+Không cần Chrome Extension hay n8n. Luồng URL luôn dùng TinyFish, không fallback
+sang crawler cookie cũ. Cả hai cách vẫn lưu PostgreSQL và dùng chung model v3 /
+rule backend. TinyFish là dịch vụ bên thứ ba có chi phí/hạn mức; không bảo đảm
+lấy mọi review hoặc vượt CAPTCHA. Khi có dữ liệu một phần, hệ thống giữ review
+hợp lệ kèm cảnh báo và metadata về mức độ đầy đủ.
 
-Xem [hướng dẫn URL / CSV / Excel](HYBRID_COLLECTION.md). Cookie nằm trong `.env`
-cục bộ và không được đưa vào Git, log hay giao diện.
+Xem [hướng dẫn URL / CSV / Excel](HYBRID_COLLECTION.md). Khóa thật nằm trong
+`.env` cục bộ và không được đưa vào Git, log, chat hay giao diện.
 
 ## Mục lục
 
@@ -73,7 +78,7 @@ cục bộ và không được đưa vào Git, log hay giao diện.
 | Phân tích sản phẩm | Nhập URL Lazada, crawl review, phân tích và lưu database |
 | Tải CSV / Excel | Chỉ cần tên sản phẩm và file, gộp/chống trùng và phân tích theo tài khoản |
 | Sentiment | `Positive`, `Neutral`, `Negative` từ model và decision layer |
-| Dashboard | Tổng số review, phân bố sentiment, nhóm vấn đề và rủi ro |
+| Dashboard | Phân bố 1–5 sao, điểm sao trung bình, mức cảnh báo rủi ro, cảm xúc, nhóm vấn đề và xu hướng qua các lần phân tích |
 | Review | Xem nội dung, rating, sentiment, issue/risk; API có phân trang và lọc rating |
 | Lịch sử | Xem sản phẩm đã lưu và snapshot thống kê của từng lần phân tích |
 | Issue | Rule nhận diện chất lượng, giao hàng, dịch vụ/đổi trả và giá/khuyến mãi |
@@ -87,6 +92,16 @@ Mã issue trả về gồm `PRODUCT_QUALITY`, `SHIPPING_LOGISTICS`,
 `risk_flag=false` là kết quả không phát hiện cảnh báo, không phải một review
 bị đánh dấu rủi ro chỉ vì có bản ghi trong bảng `risk_detection`.
 
+Dashboard tính điểm sao trung bình và tỷ lệ từng sao trên các review đã lưu có
+rating hợp lệ từ 1 đến 5; review thiếu sao được đếm riêng. Biểu đồ rủi ro chỉ
+đếm review có `risk_flag=true`, phân theo mức độ. Biểu đồ xu hướng so sánh
+tỷ lệ cảm xúc của tập review tại từng lần phân tích, không phải review mới mỗi ngày.
+
+Các lần phân tích mới lưu thêm `rating_summary` vào lịch sử; backend tự bổ sung
+cột khi khởi động, giữ nguyên dữ liệu cũ. Với lịch sử cũ chưa có thống kê số sao,
+lần mới nhất hiển thị số sao **hiện có** kèm chú thích; các lần cũ hơn hiển thị
+thông báo thiếu thống kê, không lấy số liệu hiện tại giả làm dữ liệu lịch sử.
+
 Các giới hạn cần hiểu khi sử dụng:
 
 - Crawler đang hoạt động chỉ nhận URL đầy đủ của **Lazada Việt Nam**. Dữ liệu Tiki đã lưu vẫn xem được; không đổi nhãn sàn cho dữ liệu cũ.
@@ -94,10 +109,11 @@ Các giới hạn cần hiểu khi sử dụng:
 - Có đăng ký, đăng nhập, đăng xuất và quên mật khẩu; dữ liệu được tách theo tài khoản.
   Mailpit chỉ nhận email thử nghiệm trên máy local.
 - Phân tích là request đồng bộ, xử lý review lần lượt; chưa có hàng đợi tác vụ/background job.
-- Crawler mặc định **không giới hạn số review, số trang hoặc thời gian tổng**.
-  Đọc đến hết các trang API trả về, chỉ giữ bình luận có nội dung và chống trùng ID.
-  Mỗi request mạng có timeout. Chế độ cookie dừng khi gặp chặn/lỗi và giữ dữ liệu
-  đã có với `PARTIAL`; không chuyển sang nguồn khác để tiếp tục phiên bị chặn.
+- Crawler dùng TinyFish Agent API với thời gian chờ mặc định **600 giây**,
+  cấu hình bằng `TINYFISH_TIMEOUT_SECONDS`. Kết quả còn phụ thuộc truy cập nguồn,
+  chi phí/hạn mức TinyFish và khả năng trích xuất. Chỉ giữ review có nội dung,
+  loại trùng; dữ liệu thiếu được giữ với `PARTIAL` và metadata để kiểm tra.
+  Không có bảo đảm đã lấy mọi review, kể cả khi dịch vụ kết thúc lượt chạy.
 - Repo hiện chứa inference, kiểm thử và bộ weights v3 đi kèm source; chưa có
   pipeline train đầy đủ để tái tạo model từ dataset ngay sau khi clone.
 
@@ -105,7 +121,7 @@ Các giới hạn cần hiểu khi sử dụng:
 
 ```text
 Trình duyệt → Frontend React → Backend FastAPI
-                                ├─ Crawler Service → hàm crawl + Cookie → Lazada
+                                ├─ Crawler Service → TinyFish Agent API → Lazada
                                 ├─ AI Service → 5 fold của model v3
                                 ├─ Decision Layer → final sentiment
                                 ├─ Issue / Risk Rules
@@ -121,7 +137,7 @@ CSV / Excel + tên sản phẩm → API xác thực → Backend → cùng pipeli
 | `frontend` | React 19, TypeScript 6, Vite 8, Tailwind, Recharts | `http://localhost:5173` | `http://frontend:5173` |
 | `backend` | Python 3.12, FastAPI, SQLAlchemy | `http://127.0.0.1:8000` | `http://backend:8000` |
 | `ai-service` | TensorFlow 2.21.0, Keras 3.13.2, Underthesea | `http://127.0.0.1:8001` | `http://ai-service:8001` |
-| `crawler-service` | FastAPI, curl_cffi | `http://127.0.0.1:8002` | `http://crawler-service:8002` |
+| `crawler-service` | FastAPI, requests, TinyFish Agent API | `http://127.0.0.1:8002` | `http://crawler-service:8002` |
 | `postgres` | PostgreSQL 16 | `127.0.0.1:5433` | `postgres:5432` |
 | `mailpit` | Hộp thư reset mật khẩu thử nghiệm | `http://localhost:8025` | SMTP `mailpit:1025` |
 
@@ -164,7 +180,8 @@ DuanCNTT/
 │   └── README.md                  # Chi tiết inference
 ├── crawler-service/
 │   ├── main.py                    # Entry point thực tế trong Docker
-│   ├── cookie_crawler.py          # Hàm crawl đang hoạt động, cookie đọc mỗi lượt
+│   ├── tinyfish_crawler.py        # TinyFish Agent API, chuẩn hóa review và metadata
+│   ├── cookie_crawler.py          # Mã legacy, không dùng cho luồng URL
 │   ├── lazada_common.py           # Kiểm tra URL và chuẩn hóa ngày
 │   └── tests/                     # Kiểm thử offline và fixture cho E2E
 ├── database/
@@ -186,7 +203,9 @@ image kiểm thử giao diện tùy chọn, không được cài vào crawler �
 
 - Git để clone repo.
 - Docker Engine/Desktop đang chạy và Docker Compose v2 (`docker compose`).
-- Internet để tải image, Python/npm packages và crawl Lazada.
+- Internet để tải image, Python/npm packages và gọi TinyFish Agent API.
+- Khóa TinyFish có quyền/hạn mức phù hợp nếu dùng nhánh phân tích URL; lấy tại
+  [TinyFish API Keys](https://agent.tinyfish.ai/api-keys). Nhánh file không cần khóa.
 - Các cổng host `5173`, `8000`, `8001`, `8002`, `5433`, `5678` chưa bị ứng dụng khác chiếm.
 - Khuyến nghị dành khoảng 8 GB RAM cho môi trường Docker và ít nhất 10 GB dung
   lượng trống cho image, cache build và dữ liệu. Đây là gợi ý vận hành, không phải
@@ -312,14 +331,16 @@ So sánh `model_result.confidence`, `final.rules_applied`, `final.method` và
 4. Giao diện điều hướng đến `/products/{product_db_id}/dashboard`.
 5. Xem Reviews, Issues, Risk và trang History (`/history`).
 
-Lần đầu có thể mất vài phút do crawl nhiều trang và chạy 5 fold cho từng review.
-Lazada có thể trả dữ liệu thiếu hoặc chặn request; đây không phải tác vụ offline.
+Lượt phân tích có thể mất vài phút do TinyFish thu thập và backend chạy 5 fold
+cho từng review mới. Đây là tác vụ online có thể phát sinh chi phí TinyFish;
+nguồn có thể chặn hoặc chỉ cung cấp dữ liệu một phần. Đọc cảnh báo hoàn tất và
+metadata trước khi coi tập review là đầy đủ.
 
 Nếu muốn gọi bằng terminal, tạo khóa qua `POST /auth/api-token` trong Swagger
 như [hướng dẫn xác thực](AUTHENTICATION.md#nhập-dữ-liệu), đặt vào biến PERSONAL_API_TOKEN rồi thay URL ví dụ bằng URL Lazada thực tế còn hợp lệ:
 
 ```bash
-curl -sS --max-time 600 http://127.0.0.1:8000/products/analyze \
+curl -sS http://127.0.0.1:8000/products/analyze \
   -H "Authorization: Bearer $PERSONAL_API_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://www.lazada.vn/products/pdp-i3215038850-s116979513497.html"}'
@@ -340,8 +361,9 @@ curl -fsS "http://127.0.0.1:8000/products/${SENTIMENT_PRODUCT_DB_ID}/reviews?pag
 ### 6.1. Luồng phân tích sản phẩm
 
 1. `POST /products/analyze` nhận URL.
-2. Backend gọi crawler; crawler tách Lazada `itemId` và `skuId`, gọi endpoint đánh giá, lấy tên/review,
-   loại review rỗng và trùng trong lần crawl.
+2. Backend gọi crawler; crawler kiểm tra URL Lazada, gọi TinyFish Agent API để
+   lấy tên/review, chuẩn hóa dữ liệu, loại review rỗng/trùng và trả metadata về
+   mức độ đầy đủ. Khóa API chỉ được dùng phía crawler.
 3. Backend tìm/tạo Product, suy luận category từ tên/URL.
 4. Review mới hoặc thiếu sentiment được gửi sang AI. Review đã hoàn thiện dữ
    liệu phân tích được tái sử dụng, không tự chạy lại model mỗi lần crawl.
@@ -469,8 +491,8 @@ Thiếu xác thực trả 401; sản phẩm của tài khoản khác trả 404. 
 | --- | --- | --- |
 | GET | `/` | Process backend đang chạy |
 | GET | `/products` hoặc `/products/` | Danh sách sản phẩm đã lưu |
-| GET | `/products/collection-config` | Nhánh thu thập URL: crawler dùng cookie |
-| POST | `/products/analyze` | Body `{"url":"URL_LAZADA"}`; crawl bằng cookie, phân tích, ghi database |
+| GET | `/products/collection-config` | Nhánh thu thập URL: TinyFish Agent API |
+| POST | `/products/analyze` | Body `{"url":"URL_LAZADA"}`; lấy review qua TinyFish, phân tích, ghi database |
 | GET | `/collections/status` | Kiểm tra khóa nhập dữ liệu và giới hạn upload |
 | POST | `/collections/reviews` | Nhận JSON cho client API cũ; cần cookie / Bearer cá nhân |
 | POST | `/collections/import` | Import bytes CSV/Excel với tên sản phẩm; cần cookie / Bearer cá nhân; xem [hợp đồng API](HYBRID_COLLECTION.md#api) |
@@ -501,34 +523,34 @@ Chỉ khi đi qua backend client thì `final` mới được quyết định l�
 | GET | `/` | Trạng thái process |
 | POST | `/crawl` | Body `{"url":"URL_LAZADA"}`; trả platform=lazada, product ID, sku_id, tên và reviews |
 
-Crawler có retry, sleep giữa trang, loại duplicate/rỗng và có thể trả
-`crawl_status = PARTIAL`, `crawl_error`, `stopped_at_page`, `missing_pages`.
-`FULL` chỉ có nghĩa đã duyệt hết trang endpoint báo về, không bao gồm review
-bị Lazada ẩn hoặc review không có bình luận. Không có hạn mức trang/review hoặc
-timeout tổng 90/120 giây. Backend chờ crawler với read timeout `None`; mỗi request
-Lazada tối đa 15 giây, retry tối đa 2 lần khi lỗi kết nối/5xx. Dừng khi 3 trang
-lỗi liên tiếp để tránh gọi vô hạn vào nguồn đang chặn. Mỗi lần gọi AI vẫn có
+Crawler mặc định gọi TinyFish Agent API qua
+[`tinyfish_crawler.py`](crawler-service/tinyfish_crawler.py), không gọi
+`cookie_crawler.py` và không chuyển về nguồn cũ nếu TinyFish lỗi. `GET /` cho
+biết `crawler_mode=tinyfish`, `access_mode=tinyfish_api_key`. Thiếu khóa hoặc
+khóa/hạn mức không hợp lệ trả lỗi cấu hình 503; giới hạn tốc độ trả 429,
+lỗi kết nối/giao thức trả 502 và hết thời gian chờ trả 504. Chi tiết lỗi được
+chuyển tới giao diện mà không đưa khóa API vào response/log.
+
+Kết quả có `crawl_source=tinyfish`, `collection_provider=tinyfish`,
+`crawl_status` (`FULL`/`PARTIAL`), `crawl_error` và `requires_verification` cùng
+metadata về mức độ đầy đủ nếu có. Kết thúc lượt TinyFish không tự đồng nghĩa với
+đã lấy đủ mọi đánh giá. Khi có review hợp lệ nhưng chưa xác minh được đầy đủ,
+crawler giữ dữ liệu với `PARTIAL`; backend vẫn phân tích/lưu và giao diện hiển
+thị cảnh báo. Trạng thái hoàn tất không bao gồm cam kết về review bị nguồn ẩn,
+review không truy cập được hoặc review không có nội dung.
+
+`TINYFISH_TIMEOUT_SECONDS` mặc định 600 giây, được dùng làm giới hạn thời gian
+lượt thu thập TinyFish. Backend còn chạy AI/rule sau đó; mỗi lần gọi AI vẫn có
 timeout 60 giây riêng cho review đó. Giữ tab phân tích mở khi xử lý nhiều review.
+TinyFish có chi phí/hạn mức theo tài khoản và không bảo đảm vượt CAPTCHA hoặc
+lấy mọi review. Test offline không xác nhận đã truy cập thành công Lazada thật.
 
-Chi tiết URL, ánh xạ dữ liệu và giới hạn truy cập nằm trong
-[README crawler](crawler-service/README.md). `sku_id` được ghi nhận từ URL;
-đánh giá hiện được lấy chung theo `itemId`, không lọc riêng từng SKU.
-Ngày review tiếng Việt được chuẩn hóa sang ISO trước khi backend lưu database.
-Backend lưu `platform=lazada`; các bản ghi `platform=tiki` có sẵn giữ nguyên và
-không bị trùng ID với dữ liệu mới. Không cần đổi schema hay xóa volume database.
-
-Nếu Lazada trả trang HTML/CAPTCHA thay JSON, crawler thử đọc dữ liệu review có
-sẵn trên trang `www.lazada.vn/product-reviews/?item_id=...`. Nguồn này không
-đảm bảo đầy đủ review nên kết quả là `PARTIAL`; dashboard hiển thị cảnh báo cho
-lần phân tích vừa hoàn tất. `crawl_source` cho biết nguồn đã dùng. Chỉ khi API
-và trang HTML đều không đọc được dữ liệu mới trả HTTP 502 kèm mô tả, không coi
-việc bị chặn là sản phẩm không có review.
-
-Compose mặc định dùng hàm `crawl_lazada_reviews` trong
-`crawler-service/cookie_crawler.py`. Lấy 1–5 sao, page size 5, không giới hạn
-trang, đọc LAZADA_COOKIE từ `.env` mỗi lần bắt đầu. HTML xác minh/403/429 hoặc
-trang lặp làm dừng lượt crawl; giữ review đã lấy và báo PARTIAL. Xem
-[hướng dẫn cookie và file](HYBRID_COLLECTION.md). Crawler chạy bằng curl_cffi, không cần Chromium hoặc cấu hình seccomp riêng.
+Chi tiết cấu hình và giới hạn nằm trong [README crawler](crawler-service/README.md)
+và [hướng dẫn URL / file](HYBRID_COLLECTION.md). `sku_id` được ghi nhận từ URL;
+review trích xuất có thể thuộc toàn listing, không bảo đảm chỉ một SKU.
+Ngày review được chuẩn hóa trước khi backend lưu database. Backend lưu
+`platform=lazada`; các bản ghi `platform=tiki` có sẵn giữ nguyên và không bị
+trùng ID với dữ liệu mới. Không cần đổi schema hay xóa volume database.
 
 ## 9. Biến môi trường và cấu hình mạng
 
@@ -545,11 +567,15 @@ trang lặp làm dừng lượt crawl; giữ review đã lấy và báo PARTIAL.
 | `AUTH_FRONTEND_URL` | Origin website và gốc link reset; mặc định `http://localhost:5173` |
 | `AUTH_COOKIE_SECURE` | `false` cho local HTTP, `true` khi triển khai HTTPS |
 | `SMTP_HOST` / `SMTP_PORT` | Mailpit `mailpit:1025`, UI email thử tại `localhost:8025` |
-| `LAZADA_COOKIE` | Cookie cục bộ, đọc lại từ .env khi bắt đầu crawl |
+| `TINYFISH_API_KEY` | Khóa TinyFish cho luồng URL; lấy tại [API Keys](https://agent.tinyfish.ai/api-keys), chỉ lưu cục bộ |
+| `TINYFISH_TIMEOUT_SECONDS` | Thời gian chờ thu thập TinyFish, mặc định `600` giây |
+| `CRAWLER_ENV_FILE` | Compose đặt `/run/duancntt/config/.env` để đọc lại khóa/timeout từ `.env` gốc mỗi lượt crawl |
 
 File `.env.example` có sẵn cấu hình local cho Compose. Nếu đổi username,
 password hoặc database, sửa đồng bộ các biến PostgreSQL và `DATABASE_URL`.
 Password có ký tự đặc biệt trong URL cần URL-encode. Không commit `.env` thật.
+Crawler đọc lại khóa TinyFish và timeout khi bắt đầu lượt mới; đổi hai biến này
+không cần restart. Các biến service khác vẫn cần recreate container khi thay đổi.
 Trong Docker, dùng `postgres:5432`; backend native trên host dùng `127.0.0.1:5433`.
 
 `database/connection.py` tìm `database/.env` nếu file đó tồn tại, nếu không dùng
@@ -646,9 +672,11 @@ docker compose run --rm --no-deps crawler-service python -m unittest discover -s
 docker compose run --rm --no-deps -e DATABASE_URL=sqlite:///:memory: backend python -m unittest discover -s tests -v
 ```
 
-Các test dùng response Lazada mô phỏng và SQLite tạm; không gọi Lazada/AI thật
-và không sử dụng database sản phẩm. Chúng kiểm tra URL, phân trang, chống trùng,
-review rỗng, ngày tiếng Việt, lỗi/chặn truy cập, timeout và tách dữ liệu theo sàn.
+Các test dùng phản hồi TinyFish mô phỏng và SQLite tạm; không gọi TinyFish,
+Lazada/AI thật và không sử dụng database sản phẩm. Chúng kiểm tra cấu hình, URL,
+chuẩn hóa review, chống trùng, dữ liệu thiếu/lỗi, timeout và tách dữ liệu theo sàn.
+Các test cookie còn lại dành cho mã legacy, không phải luồng URL đang hoạt động.
+Test offline thành công không chứng minh TinyFish lấy được review Lazada thật.
 
 ### Backend
 
@@ -682,7 +710,7 @@ docker compose run --rm --no-deps frontend npm run build
 Lệnh kiểm tra TypeScript và bundle Vite. Nếu chạy native: `cd frontend`,
 `npm ci`, `npm run build`.
 
-### Crawler thật — tùy chọn, cần Internet/Lazada
+### Crawler thật — tùy chọn, cần Internet và khóa TinyFish
 
 ```bash
 curl -fsS http://127.0.0.1:8002/crawl \
@@ -690,8 +718,11 @@ curl -fsS http://127.0.0.1:8002/crawl \
   -d '{"url":"URL_SAN_PHAM_LAZADA_CON_HIEU_LUC"}'
 ```
 
-Thay `URL_SAN_PHAM_LAZADA_CON_HIEU_LUC` bằng URL thật trước khi chạy. Lệnh này
-gọi Lazada thật; kết quả phụ thuộc tình trạng sản phẩm và kết nối tới Lazada.
+Thay `URL_SAN_PHAM_LAZADA_CON_HIEU_LUC` bằng URL thật trước khi chạy, điền
+`TINYFISH_API_KEY` trong `.env` và kiểm tra chi phí/hạn mức TinyFish. Lệnh này
+gọi TinyFish thật để truy cập Lazada, có thể phát sinh chi phí. Kết quả phụ thuộc
+nguồn và dịch vụ; kiểm tra trạng thái/cảnh báo và metadata về mức độ đầy đủ.
+Không dùng test offline làm bằng chứng đã chạy thành công lệnh này.
 
 ## 12. Vận hành, cập nhật và phân tích lại
 
@@ -856,9 +887,9 @@ docker compose logs --tail 100 backend ai-service crawler-service postgres
 | Kết nối DB sai password sau sửa `.env` | Volume cũ vẫn giữ user/password cũ; cập nhật thông tin kết nối hoặc đổi password DB có kiểm soát |
 | `localhost` kết nối thất bại trong backend container | `localhost` là chính container; dùng `postgres`, `ai-service`, `crawler-service` trong Compose |
 | Trình duyệt báo CORS/Failed to fetch | Kiểm tra backend có chạy, origin được cho phép và URL API đang hard-code ở frontend |
-| `/products/analyze` trả lỗi | `400`: URL sai; `502`: crawler/Lazada lỗi hoặc bị chặn; `504`: crawler timeout; `500`: xem log backend/AI/database và detail |
+| `/products/analyze` trả lỗi | `400`: URL sai; `503`: thiếu/sai khóa hoặc hạn mức TinyFish; `429`: giới hạn tốc độ; `502`: lỗi nguồn/dịch vụ; `504`: timeout; `500`: xem detail và log backend/AI/database |
 | `/predict` trả 422 cho emoji | Bình thường với nội dung rỗng sau clean; API phân tích sản phẩm hiện bỏ qua sentiment của review đó |
-| Crawl không có/thiếu review | Kiểm tra URL, quyền truy cập nguồn công khai, `missing_pages` và `PARTIAL`; HTML công khai có thể chỉ có 50 review, không phải giới hạn của ứng dụng |
+| Crawl không có/thiếu review | Kiểm tra URL, cấu hình/hạn mức TinyFish, `PARTIAL`, `requires_verification` và metadata; không coi kết thúc lượt chạy là đã lấy mọi review, không fallback sang cookie |
 | Build timeout khi tải package | Kiểm tra mạng/DNS Docker, chạy lại build; tránh nâng dependency ngẫu nhiên |
 | Sửa code mà giao diện/AI không đổi | Build và recreate đúng service; restart hoặc refresh trình duyệt không copy source vào image |
 | `Cannot find module`/`ModuleNotFoundError` khi native | Đúng thư mục, đúng venv và entry point; không chạy backend bằng venv Python 3.14 của dự án khác |

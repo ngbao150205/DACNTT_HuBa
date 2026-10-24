@@ -1,49 +1,61 @@
-# Crawler Lazada — TinyFish Agent API
+# Crawler Lazada — cookie trong .env
 
-`POST /crawl` nhận URL sản phẩm HTTPS Lazada Việt Nam, gọi **TinyFish Agent
-API**, rồi chuẩn hóa tên sản phẩm/review cho backend. Backend tiếp tục dùng
-model v3 và rule hiện có, lưu PostgreSQL. Crawler không dùng TinyFish để quyết
-định sentiment.
+`POST /crawl` nhận URL sản phẩm Lazada Việt Nam và gọi API đánh giá bằng
+`cookie_crawler.py`. Backend tiếp tục phân tích bằng model v3/rule và lưu
+PostgreSQL. Luồng này không gọi TinyFish.
 
-Cấu hình trong `.env` gốc dự án:
+## Cấu hình
+
+Chỉ cần một biến trong `.env` ở thư mục gốc dự án:
 
 ```dotenv
-TINYFISH_API_KEY=YOUR_TINYFISH_API_KEY
-TINYFISH_TIMEOUT_SECONDS=600
+LAZADA_COOKIE=''
 ```
 
-Lấy khóa tại [TinyFish API Keys](https://agent.tinyfish.ai/api-keys). Giữ khóa
-thật trong `.env` cục bộ; không gửi vào Git, chat, log hoặc giao diện. Không cần
-Cookie, User-Agent Lazada hoặc trình duyệt chạy trong container ứng dụng.
+Điền giá trị thật giữa hai dấu nháy đơn. Không cần `LAZADA_USER_AGENT`;
+`curl_cffi` tự cung cấp User-Agent mặc định.
 
-Compose đặt `CRAWLER_ENV_FILE=/run/duancntt/config/.env` và mount thư mục gốc
-read-only. Mỗi lượt crawl mới đọc lại khóa/timeout nên không cần restart khi đổi
-hai giá trị này. Lượt đang chạy giữ cấu hình đã đọc. Thiếu khóa làm luồng URL
-báo lỗi cấu hình; nhánh CSV/Excel không phụ thuộc TinyFish.
+1. Mở sản phẩm Lazada trên Chrome, mở DevTools → **Network**.
+2. Mở phần đánh giá hoặc chuyển trang đánh giá, tìm request `getReviewList`.
+3. Kiểm tra **Response** trả JSON có danh sách đánh giá, thay vì HTML xác minh.
+4. Trong **Headers → Request Headers**, sao chép **giá trị** của `Cookie`.
+5. Dán giá trị vào `LAZADA_COOKIE='...'` trong `.env`, giữ toàn bộ trên một dòng.
+   Không dán chữ `Cookie:`, lệnh cURL hoặc dùng dấu backtick.
 
-- Mặc định luôn dùng TinyFish, không fallback sang cookie hoặc nguồn cũ.
-- Chỉ giữ review có nội dung; chuẩn hóa trường dữ liệu và loại trùng trước khi
-  gửi sang backend.
-- Kết quả một phần vẫn giữ review hợp lệ, trả trạng thái/cảnh báo và metadata
-  về mức độ đầy đủ. Không suy ra đã lấy mọi đánh giá chỉ từ số review hoặc
-  việc dịch vụ đã kết thúc lượt chạy.
-- Timeout mặc định 600 giây là thời gian chờ thu thập; backend còn cần thời gian
-  phân tích review sau đó.
-- TinyFish là dịch vụ bên thứ ba có chi phí và hạn mức theo tài khoản. Không có
-  bảo đảm lấy hết đánh giá, truy cập được mọi sản phẩm hoặc vượt CAPTCHA.
-- `cookie_crawler.py` là mã legacy để tham khảo/kiểm thử offline; không nằm
-  trong đường gọi URL đang hoạt động.
+Giữ cookie thật trong `.env` cục bộ; không đưa vào Git, chat hoặc log.
+Cookie phiên Lazada khác với cookie đăng nhập website DuanCNTT.
 
-Khởi chạy từ thư mục gốc với `docker compose up -d`. Nếu cập nhật source/image
-cũ, dùng `docker compose up -d --build crawler-service backend frontend` một lần.
-Xem [hướng dẫn URL/file](../HYBRID_COLLECTION.md#2-url--tinyfish-agent-api-và-khóa-trong-env)
-và [tài liệu TinyFish chính thức](https://docs.tinyfish.ai).
+Từ thư mục gốc, khởi chạy bằng `docker compose up -d`. Nếu container đang chạy
+bản TinyFish hoặc source cũ, đồng bộ một lần bằng:
 
 ```bash
-docker compose logs -f --tail=100 crawler-service backend
-docker compose run --rm --no-deps crawler-service python -m unittest discover -s tests -v
+docker compose up -d --build crawler-service backend frontend
 ```
 
-Bộ test dùng dữ liệu giả lập, không kiểm chứng một lượt truy cập Lazada thật và
-không tiêu thụ API TinyFish. Khi chạy thử URL thật, kiểm tra khóa, hạn mức/chi
-phí và metadata của lượt thu thập; không in khóa ra terminal.
+Compose đặt `LAZADA_ENV_FILE=/run/duancntt/config/.env` và mount thư mục gốc
+read-only. Mỗi lượt crawl mới đọc lại cookie, kể cả khi IDE lưu bằng atomic
+rename. Những lần thay cookie tiếp theo không cần restart hoặc build lại.
+
+## Luồng và giới hạn
+
+- Thu thập các mức 1–5 sao, phân trang đến khi hết dữ liệu; không giới hạn 50 review.
+- Chỉ giữ bình luận có nội dung, chuẩn hóa ngày và loại review trùng.
+- Một HTTP session được giữ trong lượt crawl để nhận cookie cập nhật từ nguồn.
+- Thiếu cookie: trả `503` trước khi gọi Lazada.
+- Gặp HTML xác minh hoặc lỗi truy cập: dừng crawl, giữ các review đã lấy với
+  `crawl_status=PARTIAL`. Nếu chưa lấy được review nào, trả lỗi cho backend.
+- Cookie hợp lệ không bảo đảm truy cập được mọi trang đánh giá. Crawler không
+  tự vượt CAPTCHA; kết quả/lịch sử đã lưu được giữ nguyên khi nguồn bị chặn.
+- Nhánh nhập CSV/Excel không cần cookie.
+
+## Kiểm tra
+
+```bash
+curl -fsS http://127.0.0.1:8002/
+docker compose exec -T crawler-service python -m unittest discover -s tests -p test_cookie_crawler.py -v
+docker compose logs -f --tail=100 crawler-service backend
+```
+
+Health API phải trả `crawler_mode="cookie"`, `access_mode="configured_cookie"`.
+Test dùng HTTP giả lập và localhost, không gọi Lazada hoặc dùng cookie thật.
+Xem thêm [hướng dẫn URL/file](../HYBRID_COLLECTION.md#2-url--cookie-trong-env).

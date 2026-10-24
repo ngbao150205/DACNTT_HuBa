@@ -41,61 +41,46 @@ quả AI. Không cần cột URL hoặc ID sản phẩm.
 - Ngày nhận ISO, dd/mm/yyyy, Unix timestamp hoặc ô ngày Excel; không biết thì
   để trống. Sheet khác sheet đầu tiên không được nhập tự động.
 
-## 2. URL — TinyFish Agent API và khóa trong .env
+## 2. URL — cookie trong .env
 
-Luồng mặc định: website → backend → crawler-service → **TinyFish Agent API**
-→ review đã chuẩn hóa → AI/rule backend hiện có → PostgreSQL. Không cần
-Cookie hoặc User-Agent Lazada, Chrome Extension hay n8n. TinyFish chỉ thu thập
-và trích xuất dữ liệu; kết quả cảm xúc vẫn do model v3 và rule của hệ thống quyết định.
+Luồng: website → backend → crawler-service → **API đánh giá Lazada** → review
+đã chuẩn hóa → AI/rule backend → PostgreSQL. Crawler đang dùng
+`cookie_crawler.py`, không gọi TinyFish, Chrome Extension hoặc n8n.
 
-1. Lấy khóa tại [TinyFish API Keys](https://agent.tinyfish.ai/api-keys).
-2. Nếu chưa có `.env`, chạy `cp .env.example .env` ở thư mục gốc dự án.
-3. Mở `.env` cục bộ và điền khóa thật vào `TINYFISH_API_KEY`:
+Nếu chưa có `.env`, chạy `cp .env.example .env`. Trong `.env` ở thư mục gốc,
+điền giá trị header Cookie từ request `getReviewList` trả JSON thành công:
 
 ```dotenv
-TINYFISH_API_KEY=YOUR_TINYFISH_API_KEY
-TINYFISH_TIMEOUT_SECONDS=600
+LAZADA_COOKIE=''
 ```
 
-4. Chạy `docker compose up -d`, đăng nhập website và nhập URL sản phẩm Lazada Việt Nam.
+Chỉ cần `LAZADA_COOKIE`; không cần `LAZADA_USER_AGENT` hoặc khóa API TinyFish.
+Điền cookie thật giữa hai dấu nháy đơn, trên một dòng, không kèm chữ `Cookie:`
+và không dùng backtick. Xem [cách lấy cookie](crawler-service/README.md#cấu-hình).
+Giữ cookie cục bộ, không gửi vào Git, chat, log hoặc form phân tích.
 
-Giữ khóa thật trong `.env` trên máy chạy; không đưa vào Git, chat, ảnh chụp,
-log hoặc form phân tích. Backend không yêu cầu người dùng nhập khóa trên giao diện.
-Thiếu khóa thì luồng URL báo lỗi cấu hình; nhập CSV/Excel vẫn hoạt động mà không cần khóa.
-
-Nếu cập nhật từ bản cũ, build và áp dụng source mới một lần:
+Chạy `docker compose up -d`, đăng nhập website và nhập URL sản phẩm Lazada.
+Nếu container đang chạy bản cũ hoặc TinyFish, đồng bộ source một lần:
 
 ```bash
-docker compose up -d --build backend frontend crawler-service
+docker compose up -d --build crawler-service backend frontend
 ```
 
-Compose mount thư mục dự án read-only tại `/run/duancntt/config` và đặt
-`CRAWLER_ENV_FILE=/run/duancntt/config/.env`. Crawler đọc lại
-`TINYFISH_API_KEY` và `TINYFISH_TIMEOUT_SECONDS` từ `.env` **mỗi lần bắt đầu
-crawl mới**, kể cả khi IDE lưu file bằng atomic rename. Đổi hai giá trị này
-không cần restart hoặc build; lượt đang chạy dùng cấu hình đã đọc lúc bắt đầu.
-Những cấu hình service khác vẫn cần recreate container khi thay đổi.
+Compose đặt `LAZADA_ENV_FILE=/run/duancntt/config/.env`. Crawler đọc lại cookie
+trong file được mount **mỗi lần bắt đầu crawl mới**, nên thay cookie không cần
+restart hoặc build lại. Lượt đang chạy giữ cấu hình đã đọc lúc bắt đầu.
 
-`TINYFISH_TIMEOUT_SECONDS` mặc định 600 giây, giới hạn thời gian crawler chờ
-lượt thu thập TinyFish. Đây không phải cam kết thời gian hoàn tất toàn bộ phân tích:
-backend còn chạy AI/rule cho review mới. URL sản phẩm được gửi đến dịch vụ
-TinyFish bên thứ ba; các biến database/SMTP không nằm trong yêu cầu thu thập.
-TinyFish có chi phí và hạn mức theo tài khoản, nên kiểm tra tài khoản trước khi
-chạy nhiều lượt. Xem [tài liệu TinyFish chính thức](https://docs.tinyfish.ai).
+Crawler lấy các mức 1–5 sao, phân trang đến khi hết dữ liệu và chỉ giữ bình luận
+có nội dung, không áp giới hạn 50 review. Nếu gặp xác minh hoặc lỗi truy cập,
+crawler dừng và giữ dữ liệu một phần với `PARTIAL`; backend vẫn phân tích/lưu
+những review hợp lệ đã lấy. Khi nguồn chưa cung cấp review mới, kết quả đã lưu
+vẫn xem được trong **Lịch sử phân tích**. Thiếu cookie trả lỗi cấu hình `503`;
+nhập CSV/Excel vẫn hoạt động.
 
-Crawler yêu cầu lấy các đánh giá có nội dung, chuẩn hóa dữ liệu và bỏ review
-rỗng/trùng. Khi có kết quả một phần, hệ thống giữ review hợp lệ đã lấy, phân tích
-và lưu chúng, kèm `crawl_status`, `crawl_error` và metadata về mức độ đầy đủ.
-Số review thu được và trạng thái lượt chạy không đủ để khẳng định đã lấy mọi
-review trên Lazada. Nếu bị chặn, hết thời gian/hạn mức hoặc không xác minh được
-đã thu thập đủ, cần đọc cảnh báo và metadata của chính lượt đó. Kết quả các lần
-phân tích trước vẫn xem được trong **Lịch sử phân tích**.
-
-Luồng URL luôn dùng TinyFish, không tự chuyển sang crawler cookie cũ. Mã
-`cookie_crawler.py` còn trong repo phục vụ tham khảo/kiểm thử legacy, không được
-chọn làm nguồn thu thập đang hoạt động. TinyFish không bảo đảm lấy hết review,
-truy cập được mọi sản phẩm hoặc vượt CAPTCHA. Hướng dẫn này không khẳng định
-đã kiểm chứng thành công một lượt thu thập Lazada thật.
+Cookie không bảo đảm Lazada cung cấp hết review hoặc không yêu cầu CAPTCHA.
+Không coi số review thu được là tổng số review trên sàn; kiểm tra cảnh báo và
+metadata của lượt crawl. Hướng dẫn này không khẳng định đã kiểm chứng một lượt
+thu thập Lazada thật thành công.
 
 ## API
 
@@ -119,12 +104,11 @@ liệu và audit; không tạo lịch sử thành công giả.
 
 ```bash
 docker compose run --rm --no-deps -e DATABASE_URL=sqlite:///:memory: backend python -m unittest discover -s tests -v
-docker compose run --rm --no-deps crawler-service python -m unittest discover -s tests -v
+docker compose run --rm --no-deps crawler-service python -m unittest discover -s tests -p test_cookie_crawler.py -v
 python3 backend/tests/run_auth_e2e.py
 ```
 
-Kiểm thử crawler dùng phản hồi TinyFish giả lập để kiểm tra cấu hình,
-chuẩn hóa review và xử lý dữ liệu thiếu/lỗi; không gọi TinyFish hoặc Lazada thật.
-Các test cookie còn lại chỉ dành cho mã legacy. E2E dùng schema tạm, file thật
-và AI thật; không ghi vào dữ liệu người dùng. Test offline thành công không
-chứng minh TinyFish truy cập được một sản phẩm Lazada thật.
+Kiểm thử crawler dùng HTTP giả lập/localhost để kiểm tra cấu hình cookie,
+phân trang, chuẩn hóa review và dữ liệu một phần; không gọi Lazada hoặc dùng
+cookie thật. E2E dùng schema tạm, file thật và AI thật; không ghi vào dữ liệu
+người dùng. Test offline không chứng minh đã truy cập Lazada thật thành công.

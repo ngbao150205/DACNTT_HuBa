@@ -13,56 +13,125 @@ lerna-debug.log*
 
 
 # ==================================
-# Frontend React / Vite
+# Environment files
 # ==================================
 
-node_modules/
-dist/
-dist-ssr/
+.env
+.env.*
+!.env.example
+# ==================================
+# Frontend - React / Vite
+# ==================================
 
-*.local
-
-frontend/.env
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
 
 
 # ==================================
-# Backend Python
+# Backend - Python
 # ==================================
 
-venv/
 backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/**/*.py[cod]
+
+
+# ==================================
+# AI Service - Python
+# ==================================
+
+ai-service/venv/
+ai-service/.venv/
+ai-service/__pycache__/
+ai-service/**/*.py[cod]
+
+
+# ==================================
+# Crawler Service - Python
+# ==================================
+
+crawler-service/venv/
+crawler-service/.venv/
+crawler-service/__pycache__/
+crawler-service/**/*.py[cod]
+crawler-service/artifacts/
+crawler-service/browser-checkpoints/
+
+
+# ==================================
+# Python general
+# ==================================
 
 __pycache__/
 *.py[cod]
-
-backend/.env
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 
 # ==================================
-# AI Model
+# Dataset / Large Data
 # ==================================
 
+*.csv
+!examples/reviews.csv
+*.xlsx
+*.xls
+!backend/tests/fixtures/reviews.xls
+*.jsonl
+
+
+# ==================================
+# Model / ML artifacts
+# ==================================
+
+*.h5
+*.keras
 *.pkl
 *.joblib
 *.pt
 *.pth
-*.h5
+*.onnx
+*.bin
+*.vec
+*.npy
+*.npz
 
-
-# ==================================
-# Dataset / Data lớn
-# ==================================
-
-*.csv
-*.xlsx
-*.jsonl
+# Ship only the active v3 weights/encoder with source for reproducible clones.
+!ai-service/models/underthesea_bilstm_custom_vocab_v3/fold[1-5].keras
+!ai-service/models/underthesea_bilstm_custom_vocab_v3/label_encoder.pkl
 
 
 # ==================================
 # Database
 # ==================================
 
+*.sqlite
 *.sqlite3
+*.db
+
+
+# ==================================
+# Backups
+# ==================================
+
+backups/*.sql
+backups/*.dump
+backups/*.backup
+!backups/.gitkeep
+
+
+# ==================================
+# Docker
+# ==================================
+
+.docker/
+docker-data/
+postgres_data/
 
 
 # ==================================
@@ -86,3 +155,21 @@ backend/.env
 # ==================================
 
 .DS_Store
+
+# Local sessions, credentials and generated crawler output
+cookies*.json
+**/cookies*.json
+**/storage_state*.json
+**/playwright/.auth/
+*.har
+*.pem
+*.key
+crawler-service/exports/
+crawler-service/data/
+artifacts/
+playwright-report/
+test-results/
+
+# Only the active model directory belongs in source control.
+ai-service/models/*
+!ai-service/models/underthesea_bilstm_custom_vocab_v3/

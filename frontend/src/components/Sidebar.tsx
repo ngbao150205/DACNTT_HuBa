@@ -1,188 +1,103 @@
 import {
-    Home,
-    LayoutDashboard,
-    Package,
-    MessageSquare,
-    AlertTriangle,
-    ShieldAlert,
-    Users
+  History,
+  Home,
+  PlayCircle,
 } from "lucide-react";
 
 import {
-    NavLink
+  NavLink,
 } from "react-router-dom";
 
+function Sidebar() {
+  const navItemClass = ({
+    isActive,
+  }: {
+    isActive: boolean;
+  }) => {
+    return `
+      flex
+      items-center
+      gap-3
+      rounded-xl
+      px-4
+      py-3
+      text-sm
+      font-medium
+      transition
+      ${
+        isActive
+          ? "bg-blue-600 text-white"
+          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+      }
+    `;
+  };
 
-const menus = [
+  return (
+    <aside
+      className="
+        fixed
+        bottom-0
+        left-0
+        top-0
+        z-40
+        hidden lg:flex
+        w-72
+        flex-col
+        overflow-hidden
+        bg-slate-950
+        px-5
+        py-6
+        text-white
+      "
+    >
+      <div className="mb-10 shrink-0">
+        <h1 className="text-2xl font-bold">
+          Sentiment AI
+        </h1>
 
-{
-    name:"Trang chủ",
-    path:"/",
-    icon:LayoutDashboard
-},
+        <p className="mt-1 text-sm text-slate-400">
+          Customer Feedback Analytics
+        </p>
+      </div>
 
-{
-    name:"Dashboard",
-    path:"/dashboard",
-    icon:LayoutDashboard
-},
+      <nav className="shrink-0 space-y-2">
+        <NavLink
+          to="/"
+          end
+          className={navItemClass}
+        >
+          <Home className="h-5 w-5" />
+          Trang chủ
+        </NavLink>
 
-{
-    name:"Sản phẩm",
-    path:"/product",
-    icon:Package
-},
+        <NavLink
+          to="/analyze"
+          className={navItemClass}
+        >
+          <PlayCircle className="h-5 w-5" />
+          Bắt đầu phân tích
+        </NavLink>
 
-{
-    name:"Đánh giá khách hàng",
-    path:"/reviews",
-    icon:MessageSquare
-},
+        <NavLink
+          to="/history"
+          className={navItemClass}
+        >
+          <History className="h-5 w-5" />
+          Lịch sử phân tích
+        </NavLink>
+      </nav>
 
-{
-    name:"Nguyên nhân tiêu cực",
-    path:"/issues",
-    icon:AlertTriangle
-},
+      <div className="mt-auto shrink-0 rounded-2xl bg-slate-900 p-4">
+        <p className="text-xs font-semibold text-slate-300">
+          Hệ thống phân tích AI
+        </p>
 
-{
-    name:"Cảnh báo rủi ro",
-    path:"/risk",
-    icon:ShieldAlert
-},
-
-{
-    name:"Đối thủ cạnh tranh",
-    path:"/competitor",
-    icon:Users
+        <p className="mt-1 text-xs leading-5 text-slate-500">
+          Phân tích sentiment, nguyên nhân tiêu cực và cảnh báo rủi ro từ review sản phẩm.
+        </p>
+      </div>
+    </aside>
+  );
 }
-
-]
-
-
-function Sidebar(){
-
-return (
-
-<aside
-className="
-w-72
-bg-slate-950
-text-white
-min-h-screen
-px-5
-py-6
-"
->
-
-
-<div className="
-mb-10
-">
-
-<h1 className="
-text-2xl
-font-bold
-">
-
-Sentiment AI
-
-</h1>
-
-
-<p className="
-text-sm
-text-slate-400
-mt-1
-">
-
-Customer Feedback Analytics
-
-</p>
-
-</div>
-
-
-
-<nav
-className="
-space-y-2
-"
->
-
-
-{
-menus.map((item)=>{
-
-const Icon=item.icon;
-
-
-return (
-
-<NavLink
-
-key={item.path}
-
-to={item.path}
-
-className={({isActive})=>
-
-`
-flex
-items-center
-gap-3
-px-4
-py-3
-rounded-xl
-transition
-
-${isActive
-
-?
-"bg-blue-600 text-white"
-
-:
-
-"text-slate-300 hover:bg-slate-800"
-
-}
-
-`
-
-}
-
->
-
-
-<Icon size={20}/>
-
-
-<span>
-
-{item.name}
-
-</span>
-
-
-</NavLink>
-
-
-)
-
-
-})
-
-}
-
-
-</nav>
-
-
-</aside>
-
-)
-
-}
-
 
 export default Sidebar;
